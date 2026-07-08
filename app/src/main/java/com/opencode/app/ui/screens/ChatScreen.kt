@@ -2,7 +2,6 @@
 
 package com.opencode.app.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -43,107 +42,93 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
     LaunchedEffect(state.error) { if (state.error != null) { delay(5000); vm.clearError() } }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            // Session name banner (compact, no actions)
-            if (state.activeSession != null) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(state.activeSession!!.name, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = scheme.onSurface)
-                    Spacer(Modifier.weight(1f))
-                    val status = if (state.isConnected) "●" else "○"
-                    Text(status, style = MaterialTheme.typography.labelSmall, color = if (state.isConnected) scheme.primary else scheme.error)
-                }
-            }
-
-            // Messages
-            if (messages.isEmpty()) {
-                Box(Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Filled.Chat, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(48.dp))
-                        Spacer(Modifier.height(12.dp))
-                        Text("Start a conversation", style = MaterialTheme.typography.titleMedium, color = scheme.onSurfaceVariant)
-                        if (state.isConnected && state.sessions.isEmpty()) {
-                            Spacer(Modifier.height(12.dp))
-                            FilledTonalButton(onClick = { vm.createSession() }) { Text("New Session") }
-                        }
+        // Messages fill the screen
+        if (messages.isEmpty()) {
+            Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Filled.Chat, null, tint = scheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(48.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("Start a conversation", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+                    if (!state.isConnected && state.sessions.isEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        FilledTonalButton(onClick = { vm.setScreen(com.opencode.app.data.Screen.SETTINGS) }) { Text("Connect") }
                     }
                 }
-            } else {
-                LazyColumn(state = listState, modifier = Modifier.weight(1f), contentPadding = PaddingValues(top = 8.dp, bottom = 4.dp)) {
-                    items(messages, key = { it.id }) { msg -> ChatBubble(msg, msg.role == Role.USER) }
-                }
             }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().statusBarsPadding(),
+                contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 120.dp),
+            ) {
+                items(messages, key = { it.id }) { msg -> ChatBubble(msg, msg.role == Role.USER) }
+            }
+        }
 
+        // Bottom controls (thumb zone)
+        Column(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().statusBarsPadding(),
+        ) {
             // Error
             if (state.error != null) {
                 Surface(Modifier.fillMaxWidth().padding(horizontal = 12.dp), shape = RoundedCornerShape(12.dp), color = scheme.errorContainer) {
                     Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.Error, null, tint = scheme.error, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(6.dp))
                         Text(state.error ?: "", style = MaterialTheme.typography.bodySmall, color = scheme.onErrorContainer, modifier = Modifier.weight(1f))
                     }
                 }
                 Spacer(Modifier.height(4.dp))
             }
 
-            // Model chip + input
-            Surface(Modifier.fillMaxWidth(), color = scheme.surface) {
-                Column(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 6.dp)) {
-                    // Model selector chip
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Surface(onClick = { vm.toggleModelPicker() }, shape = RoundedCornerShape(50), color = scheme.secondaryContainer, modifier = Modifier.height(30.dp)) {
-                            Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Bolt, null, tint = scheme.onSecondaryContainer, modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(modelName, style = MaterialTheme.typography.labelSmall, color = scheme.onSecondaryContainer)
-                            }
-                        }
-                        Text(
-                            state.activeSession?.let { "${it.messages.size} msgs" } ?: "No session",
-                            style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant,
-                        )
+            // Model chip + message count
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Surface(onClick = { vm.toggleModelPicker() }, shape = RoundedCornerShape(50), color = scheme.secondaryContainer, modifier = Modifier.height(28.dp)) {
+                    Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Bolt, null, tint = scheme.onSecondaryContainer, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(modelName, style = MaterialTheme.typography.labelSmall, color = scheme.onSecondaryContainer)
                     }
-                    Spacer(Modifier.height(6.dp))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (state.activeSession != null) {
+                        Text("${state.activeSession!!.messages.size} msgs", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Surface(onClick = { vm.createSession() }, shape = RoundedCornerShape(50), color = scheme.primaryContainer) {
+                        Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Add, null, tint = scheme.primary, modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("New", style = MaterialTheme.typography.labelSmall, color = scheme.primary)
+                        }
+                    }
+                }
+            }
 
-                    // Input
-                    Surface(shape = RoundedCornerShape(28.dp), color = scheme.surfaceContainerHighest) {
-                        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            BasicTextField(
-                                value = inputText,
-                                onValueChange = { inputText = it },
-                                modifier = Modifier.weight(1f),
-                                textStyle = TextStyle(color = scheme.onSurface, fontSize = 14.sp),
-                                cursorBrush = SolidColor(scheme.primary),
-                                decorationBox = { inner ->
-                                    if (inputText.isEmpty()) Text("Type a message...", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
-                                    inner()
-                                },
-                                enabled = state.isConnected && state.activeSessionId.isNotBlank(),
-                            )
-                            if (inputText.isNotBlank()) {
-                                Surface(onClick = { vm.sendMessage(inputText); inputText = "" }, modifier = Modifier.size(36.dp), shape = RoundedCornerShape(50), color = scheme.primary) {
-                                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Send, "Send", tint = scheme.onPrimary, modifier = Modifier.size(16.dp)) }
-                                }
-                            }
+            // Input
+            Surface(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), shape = RoundedCornerShape(28.dp), color = scheme.surfaceContainerHighest) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    BasicTextField(
+                        value = inputText, onValueChange = { inputText = it },
+                        modifier = Modifier.weight(1f),
+                        textStyle = TextStyle(color = scheme.onSurface, fontSize = 14.sp),
+                        cursorBrush = SolidColor(scheme.primary),
+                        decorationBox = { inner -> if (inputText.isEmpty()) Text("Message...", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant); inner() },
+                        enabled = state.isConnected && state.activeSessionId.isNotBlank(),
+                    )
+                    if (inputText.isNotBlank()) {
+                        Surface(onClick = { vm.sendMessage(inputText); inputText = "" }, modifier = Modifier.size(36.dp), shape = RoundedCornerShape(50), color = scheme.primary) {
+                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Send, "Send", tint = scheme.onPrimary, modifier = Modifier.size(16.dp)) }
                         }
                     }
                 }
             }
         }
 
-        // FAB
-        if (state.isConnected) {
-            FloatingActionButton(
-                onClick = { vm.createSession() },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 120.dp),
-                containerColor = scheme.primary, contentColor = scheme.onPrimary, shape = RoundedCornerShape(16.dp),
-            ) { Icon(Icons.Filled.Add, "New Session") }
-        }
-
-        // Model picker
+        // Model picker dialog
         if (state.showModelPicker) {
             AlertDialog(
-                onDismissRequest = { vm.toggleModelPicker() },
-                shape = MaterialTheme.shapes.extraLarge, containerColor = scheme.surfaceContainerHigh,
+                onDismissRequest = { vm.toggleModelPicker() }, shape = MaterialTheme.shapes.extraLarge, containerColor = scheme.surfaceContainerHigh,
                 title = { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.Bolt, null, tint = scheme.primary); Spacer(Modifier.width(8.dp)); Text("Select Model", fontWeight = FontWeight.Bold) } },
                 text = {
                     Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -178,7 +163,7 @@ fun ChatBubble(msg: Message, isUser: Boolean) {
         if (!isUser) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = RoundedCornerShape(8.dp), color = scheme.primary, modifier = Modifier.size(20.dp)) {
-                    Box(contentAlignment = Alignment.Center) { Text("O", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = scheme.onPrimary) }
+                    Box(contentAlignment = Alignment.Center) { Text("O", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = scheme.onSecondaryContainer ?: scheme.onPrimary) }
                 }
                 Spacer(Modifier.width(6.dp))
                 Text("OpenCode", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, fontWeight = FontWeight.Medium)

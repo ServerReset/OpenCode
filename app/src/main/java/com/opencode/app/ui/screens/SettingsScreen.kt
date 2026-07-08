@@ -30,45 +30,26 @@ fun SettingsScreen(vm: AppViewModel, state: AppState) {
     var showPassword by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp)) {
-        Spacer(Modifier.height(16.dp))
-        Text("Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(24.dp))
 
         Text("Server", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = scheme.primary, modifier = Modifier.padding(bottom = 8.dp))
         Surface(shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                OutlinedTextField(
-                    value = serverUrlInput, onValueChange = { serverUrlInput = it },
+                OutlinedTextField(value = serverUrlInput, onValueChange = { serverUrlInput = it },
                     modifier = Modifier.fillMaxWidth(), label = { Text("Server URL") }, placeholder = { Text("http://192.168.1.100:4096") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    textStyle = MaterialTheme.typography.bodyMedium, shape = RoundedCornerShape(12.dp), enabled = !state.isConnecting,
-                )
+                    textStyle = MaterialTheme.typography.bodyMedium, shape = RoundedCornerShape(12.dp), enabled = !state.isConnecting)
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = passwordInput, onValueChange = { passwordInput = it },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Password (optional)") },
-                    singleLine = true, shape = RoundedCornerShape(12.dp), enabled = !state.isConnecting,
-                    textStyle = MaterialTheme.typography.bodyMedium,
+                OutlinedTextField(value = passwordInput, onValueChange = { passwordInput = it },
+                    modifier = Modifier.fillMaxWidth(), label = { Text("Password (optional)") }, singleLine = true,
+                    shape = RoundedCornerShape(12.dp), enabled = !state.isConnecting, textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showPassword = !showPassword }) {
-                            Icon(if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, null)
-                        }
-                    },
-                )
+                    trailingIcon = { IconButton(onClick = { showPassword = !showPassword }) { Icon(if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, null) } })
                 Spacer(Modifier.height(12.dp))
-                FilledTonalButton(
-                    onClick = { vm.setServerUrl(serverUrlInput, passwordInput) },
-                    enabled = !state.isConnecting && serverUrlInput.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (state.isConnecting) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Text("Connect")
+                FilledTonalButton(onClick = { vm.setServerUrl(serverUrlInput, passwordInput) }, enabled = !state.isConnecting && serverUrlInput.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+                    if (state.isConnecting) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Connect")
                 }
-                if (state.connectionError != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(state.connectionError!!, style = MaterialTheme.typography.labelSmall, color = scheme.error)
-                }
+                if (state.connectionError != null) { Spacer(Modifier.height(8.dp)); Text(state.connectionError!!, style = MaterialTheme.typography.labelSmall, color = scheme.error) }
             }
         }
 

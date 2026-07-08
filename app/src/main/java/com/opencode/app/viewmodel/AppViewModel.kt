@@ -74,8 +74,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         api.listSessions().fold(
             onSuccess = { list ->
                 val existing = _state.value.sessions
-                val sessions = list.map { s -> existing.find { it.id == s.id } ?: Session(id = s.id, name = s.title ?: s.id.take(8), model = _state.value.activeModel) }
-                val activeId = if (_state.value.activeSessionId.isBlank()) sessions.firstOrNull()?.id ?: "" else _state.value.activeSessionId
+                // Fetch messages for each session to check if real conversations
+                val sessions = list.mapNotNull { s ->
+                    val msgResult = api.getMessages(s.id)
+                    val hasUserMessages = msgResult.getOrNull()?.any { it.info.role == "user" } == true
+                    // Only keep sessions with user messages (real conversations)
+                    if (hasUserMessages) {
+                        existing.find { it.id == s.id }
+                            ?: Session(id = s.id, name = s.title ?: s.id.take(8), model = _state.value.activeModel)
+                    } else null
+                }.reversed() // newest first
+                val activeId = sessions.firstOrNull()?.id ?: ""
                 _state.update { it.copy(sessions = sessions, activeSessionId = activeId) }
             },
             onFailure = { /* ignore */ },
