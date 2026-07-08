@@ -106,8 +106,11 @@ private fun SettingsRow(
                 Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                 if (description != null) Text(description, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
             }
-            trailing?.let { it() }
-                ?: if (onClick != null) Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            if (trailing != null) {
+                trailing()
+            } else if (onClick != null) {
+                Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            }
         }
     }
 }

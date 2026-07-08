@@ -129,7 +129,6 @@ object ExpressiveMotion {
     const val EMPHASIZED_ACCELERATE = 200L
     const val SPRING_FAST = 350L
     const val SPRING_DEFAULT = 450L
-    val EMPHASIZED_EASING = androidx.compose.ui.util.lerp(0.2f, 0f, 0f, 1f)
 }
 
 private fun expressiveTypography(): Typography {
@@ -184,7 +183,7 @@ fun OpenCodeTheme(
 
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
-        motionScheme = MotionScheme.expressive(shapes = ExpressiveShapes),
+        motionScheme = MotionScheme.expressive(),
         typography = expressiveTypography(),
         shapes = ExpressiveShapes,
         content = content,
