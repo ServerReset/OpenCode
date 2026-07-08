@@ -67,11 +67,11 @@ private val LightExpressive = lightColorScheme(
 
 private val DarkExpressive = darkColorScheme(
     primary = Color(0xFFCFBDFE),
-    onPrimary = Color(0xFF36265F),
+    onPrimary = Color(0xFF1C1B1F),
     primaryContainer = Color(0xFF4C3D76),
     onPrimaryContainer = Color(0xFFEADDFF),
     secondary = Color(0xFFCBC2DB),
-    onSecondary = Color(0xFF332D41),
+    onSecondary = Color(0xFF1C1B1F),
     secondaryContainer = Color(0xFF494458),
     onSecondaryContainer = Color(0xFFE8DEF8),
     tertiary = Color(0xFFEFB8C8),

@@ -20,14 +20,16 @@ import androidx.compose.ui.unit.dp
 import com.opencode.app.data.Screen
 
 @Composable
-fun ExpressiveNavBar(
-    currentScreen: Screen,
-    onScreenSelected: (Screen) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun ExpressiveNavBar(currentScreen: Screen, onScreenSelected: (Screen) -> Unit, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val items = com.opencode.app.viewmodel.navItems
     val activeIndex = items.indexOfFirst { it.screen == currentScreen }
+
+    val indicatorOffset by animateDpAsState(
+        targetValue = if (activeIndex >= 0) (activeIndex * 160).dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
+        label = "navIndicator",
+    )
 
     Box(
         modifier = modifier
@@ -36,23 +38,16 @@ fun ExpressiveNavBar(
             .height(64.dp)
             .drawBehind { drawRect(color = scheme.surface) },
     ) {
-        val indicatorOffset by animateDpAsState(
-            targetValue = if (activeIndex >= 0) (activeIndex * 160).dp else 0.dp,
-            animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
-            label = "navIndicator",
+        // Animated pill indicator
+        Box(
+            modifier = Modifier
+                .offset(x = indicatorOffset)
+                .width(152.dp)
+                .height(32.dp)
+                .drawBehind { drawRoundRect(color = scheme.secondaryContainer, cornerRadius = CornerRadius(16f, 16f)) },
         )
 
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-            Box(
-                modifier = Modifier
-                    .width(152.dp)
-                    .height(32.dp)
-                    .offset(x = indicatorOffset)
-                    .align(Alignment.CenterStart)
-                    .drawBehind { drawRoundRect(color = scheme.secondaryContainer, cornerRadius = CornerRadius(16f, 16f)) },
-            )
-        }
-
+        // Tab items
         Row(modifier = Modifier.fillMaxSize()) {
             items.forEach { item ->
                 val selected = currentScreen == item.screen
@@ -69,7 +64,7 @@ fun ExpressiveNavBar(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            imageVector = if (selected) item.selectedIcon else item.icon,
+                            imageVector = item.icon,
                             contentDescription = item.label,
                             modifier = Modifier.size(24.dp),
                             tint = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
@@ -77,7 +72,7 @@ fun ExpressiveNavBar(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             item.label,
-                            style = if (selected) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
                         )
                     }

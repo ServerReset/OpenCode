@@ -19,6 +19,7 @@ data class AppState(
     val currentScreen: Screen = Screen.HOME,
     val isDarkMode: Boolean = false,
     val serverUrl: String = "http://10.0.2.2:4096",
+    val password: String = "",
     val isConnected: Boolean = false,
     val isConnecting: Boolean = false,
     val connectionError: String? = null,
@@ -28,16 +29,10 @@ data class AppState(
     val showModelPicker: Boolean = false,
     val error: String? = null,
 ) {
-    val activeSession: Session?
-        get() = sessions.find { it.id == activeSessionId }
+    val activeSession: Session? get() = sessions.find { it.id == activeSessionId }
 }
 
-data class NavItem(
-    val screen: Screen,
-    val label: String,
-    val icon: ImageVector,
-    val selectedIcon: ImageVector,
-)
+data class NavItem(val screen: Screen, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
 val navItems = listOf(
     NavItem(Screen.HOME, "Home", Icons.Filled.Home, Icons.Filled.Home),
@@ -47,43 +42,29 @@ val navItems = listOf(
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = AppPreferences(application)
-    private val _state = MutableStateFlow(
-        AppState(
-            serverUrl = prefs.serverUrl,
-            isDarkMode = prefs.isDarkMode,
-        )
-    )
+    private val _state = MutableStateFlow(AppState(
+        serverUrl = prefs.serverUrl, password = prefs.password,
+        isDarkMode = prefs.isDarkMode, activeModel = prefs.activeModel,
+    ))
     val state: StateFlow<AppState> = _state.asStateFlow()
     private val api get() = OpenCodeClient.instance
-    private var eventPollJob: kotlinx.coroutines.Job? = null
-    private var lastEventSeq = 0
 
-    init {
-        val url = _state.value.serverUrl
-        if (url.isNotBlank()) { api.setUrl(url); connect() }
-    }
+    init { if (_state.value.serverUrl.isNotBlank()) { api.configure(_state.value.serverUrl, _state.value.password); connect() } }
 
-    fun setScreen(screen: Screen) { _state.update { it.copy(currentScreen = screen) } }
+    fun setScreen(s: Screen) { _state.update { it.copy(currentScreen = s) } }
 
-    fun setServerUrl(url: String) {
-        prefs.serverUrl = url
-        _state.update { it.copy(serverUrl = url, isConnected = false, connectionError = null) }
-        api.setUrl(url)
-        connect()
+    fun setServerUrl(url: String, pass: String) {
+        prefs.serverUrl = url; prefs.password = pass
+        _state.update { it.copy(serverUrl = url, password = pass, isConnected = false, connectionError = null) }
+        api.configure(url, pass); connect()
     }
 
     fun connect() {
         viewModelScope.launch {
             _state.update { it.copy(isConnecting = true, connectionError = null, error = null) }
             api.health().fold(
-                onSuccess = {
-                    _state.update { it.copy(isConnected = true, isConnecting = false) }
-                    loadSessions()
-                },
-                onFailure = { err ->
-                    _state.update { it.copy(isConnected = false, isConnecting = false,
-                        connectionError = err.message ?: "Connection failed") }
-                },
+                onSuccess = { _state.update { it.copy(isConnected = true, isConnecting = false) }; loadSessions() },
+                onFailure = { e -> _state.update { it.copy(isConnected = false, isConnecting = false, connectionError = e.message) } },
             )
         }
     }
@@ -91,120 +72,101 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun loadSessions() {
         if (!_state.value.isConnected) return
         api.listSessions().fold(
-            onSuccess = { serverSessions ->
+            onSuccess = { list ->
                 val existing = _state.value.sessions
-                val local = serverSessions.map { s ->
-                    existing.find { it.id == s.id } ?: Session(id = s.id, name = s.name ?: "Session")
-                }
-                val active = if (_state.value.activeSessionId.isBlank()) local.firstOrNull()?.id ?: ""
-                else _state.value.activeSessionId
-                _state.update { it.copy(sessions = local, activeSessionId = active) }
+                val sessions = list.map { s -> existing.find { it.id == s.id } ?: Session(id = s.id, name = s.title ?: s.id.take(8), model = _state.value.activeModel) }
+                val activeId = if (_state.value.activeSessionId.isBlank()) sessions.firstOrNull()?.id ?: "" else _state.value.activeSessionId
+                _state.update { it.copy(sessions = sessions, activeSessionId = activeId) }
             },
-            onFailure = { /* silently ignore */ },
+            onFailure = { /* ignore */ },
         )
     }
 
     fun createSession() {
         viewModelScope.launch {
             _state.update { it.copy(error = null) }
-            api.createSession(_state.value.activeModel).fold(
-                onSuccess = { info ->
-                    val session = Session(id = info.id, name = info.name ?: "Session", model = _state.value.activeModel)
-                    _state.update { it.copy(sessions = it.sessions + session, activeSessionId = session.id, currentScreen = Screen.CHAT) }
+            api.createSession().fold(
+                onSuccess = { s ->
+                    val session = Session(id = s.id, name = s.title ?: s.id.take(8))
+                    _state.update { it.copy(sessions = listOf(session) + it.sessions, activeSessionId = session.id, currentScreen = Screen.CHAT) }
                 },
-                onFailure = { err -> _state.update { it.copy(error = "Failed to create session: ${err.message}") } },
+                onFailure = { e -> _state.update { it.copy(error = e.message ?: "Create failed") } },
             )
         }
     }
 
     fun switchToSession(id: String) {
         _state.update { it.copy(activeSessionId = id, currentScreen = Screen.CHAT) }
-        stopPolling()
+        // Fetch messages for this session
+        viewModelScope.launch {
+            api.getMessages(id).fold(
+                onSuccess = { msgs ->
+                    val messages = msgs.mapNotNull { m ->
+                        val role = when (m.info.role) { "user" -> Role.USER; "assistant" -> Role.ASSISTANT; else -> null } ?: return@mapNotNull null
+                        val text = m.parts.firstOrNull { it.type == "text" }?.text ?: ""
+                        Message(id = m.info.id, role = role, content = text)
+                    }
+                    _state.update { state ->
+                        state.copy(sessions = state.sessions.map { if (it.id == id) it.copy(messages = messages) else it })
+                    }
+                },
+                onFailure = { /* keep empty messages */ },
+            )
+        }
     }
 
-    fun setActiveModel(model: String) {
-        _state.update { it.copy(activeModel = model, showModelPicker = false) }
+    fun setActiveModel(m: String) {
+        prefs.activeModel = m
+        _state.update { it.copy(activeModel = m, showModelPicker = false) }
     }
 
     fun toggleModelPicker() { _state.update { it.copy(showModelPicker = !it.showModelPicker) } }
 
     fun sendMessage(content: String) {
-        val s = _state.value
-        val sessionId = s.activeSessionId
+        val s = _state.value; val sessionId = s.activeSessionId
         if (sessionId.isBlank()) { _state.update { it.copy(error = "Create a session first") }; return }
         if (!s.isConnected) { _state.update { it.copy(error = "Not connected") }; return }
 
         val userMsg = Message(role = Role.USER, content = content)
-        _state.update { state ->
-            state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + userMsg) else it })
-        }
+        _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + userMsg) else it }) }
 
         viewModelScope.launch {
             val assistantId = UUID.randomUUID().toString()
-            _state.update { state ->
-                state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + Message(id = assistantId, role = Role.ASSISTANT, content = "")) else it })
-            }
+            _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + Message(id = assistantId, role = Role.ASSISTANT, content = "")) else it }) }
 
-            api.sendPrompt(sessionId, content).fold(
-                onSuccess = {
-                    lastEventSeq = 0
-                    startPolling(sessionId, assistantId)
-                },
-                onFailure = { err ->
-                    val errMsg = err.message ?: "Send failed"
-                    _state.update { state ->
-                        state.copy(sessions = state.sessions.map { s ->
-                            if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m ->
-                                if (m.id == assistantId) m.copy(content = errMsg) else m
-                            }) else s
-                        })
-                    }
+            api.sendPrompt(sessionId, s.activeModel, content).fold(
+                onSuccess = { pollForMessages(sessionId, assistantId) },
+                onFailure = { e ->
+                    val msg = e.message ?: "Send failed"
+                    _state.update { state -> state.copy(sessions = state.sessions.map { s -> if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m -> if (m.id == assistantId) m.copy(content = msg) else m }) else s }) }
                 },
             )
         }
     }
 
-    private fun startPolling(sessionId: String, assistantId: String) {
-        stopPolling()
-        eventPollJob = viewModelScope.launch {
-            while (true) {
-                delay(500)
-                val r = api.getSessionEvents(sessionId, lastEventSeq)
-                if (r.isSuccess) {
-                    val text = r.getOrNull() ?: continue
-                    if (text.isNotBlank()) {
-                        lastEventSeq++
-                        _state.update { state ->
-                            state.copy(sessions = state.sessions.map { s ->
-                                if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m ->
-                                    if (m.id == assistantId) m.copy(content = m.content + text) else m
-                                }) else s
-                            })
+    private fun pollForMessages(sessionId: String, assistantId: String) {
+        viewModelScope.launch {
+            var attempts = 0
+            while (attempts < 60) {
+                delay(1000)
+                when (val r = api.getMessages(sessionId)) {
+                    is Result.Success -> {
+                        val msgs = r.getOrThrow()
+                        val text = msgs.firstOrNull { it.info.id == assistantId }?.parts?.firstOrNull { it.type == "text" }?.text
+                        if (text != null) {
+                            _state.update { state -> state.copy(sessions = state.sessions.map { s -> if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m -> if (m.id == assistantId) m.copy(content = text) else m }) else s }) }
+                            if (text.isNotEmpty()) return@launch
                         }
                     }
-                } else {
-                    _state.update { it.copy(error = "Event stream error") }
-                    delay(2000)
+                    is Result.Failure -> { _state.update { it.copy(error = "Poll error") } }
                 }
+                attempts++
             }
+            _state.update { it.copy(error = "Response timeout") }
         }
     }
 
-    private fun stopPolling() { eventPollJob?.cancel(); eventPollJob = null }
-
-    fun toggleDarkMode() {
-        val next = !_state.value.isDarkMode
-        prefs.isDarkMode = next
-        _state.update { it.copy(isDarkMode = next) }
-    }
-
-    fun clearSession() {
-        _state.update { state ->
-            state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = emptyList()) else it })
-        }
-    }
-
+    fun toggleDarkMode() { val n = !_state.value.isDarkMode; prefs.isDarkMode = n; _state.update { it.copy(isDarkMode = n) } }
+    fun clearSession() { _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = emptyList()) else it }) } }
     fun clearError() { _state.update { it.copy(error = null) } }
-
-    override fun onCleared() { stopPolling(); super.onCleared() }
 }

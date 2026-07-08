@@ -10,7 +10,15 @@ class AppPreferences(context: Context) {
         get() = prefs.getString("server_url", "http://10.0.2.2:4096") ?: "http://10.0.2.2:4096"
         set(v) = prefs.edit().putString("server_url", v).apply()
 
+    var password: String
+        get() = prefs.getString("password", "") ?: ""
+        set(v) = prefs.edit().putString("password", v).apply()
+
     var isDarkMode: Boolean
         get() = prefs.getBoolean("dark_mode", false)
         set(v) = prefs.edit().putBoolean("dark_mode", v).apply()
+
+    var activeModel: String
+        get() = prefs.getString("active_model", "claude-sonnet") ?: "claude-sonnet"
+        set(v) = prefs.edit().putString("active_model", v).apply()
 }
