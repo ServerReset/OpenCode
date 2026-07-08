@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.opencode.app.data.Message
+import com.opencode.app.data.ModelInfo
 import com.opencode.app.data.Role
 import com.opencode.app.data.availableModels
 import com.opencode.app.viewmodel.AppState
@@ -34,7 +35,7 @@ import kotlinx.coroutines.delay
 fun ChatScreen(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
     val listState = rememberLazyListState()
-    val messages = state.activeSession?.messages ?: emptyList()
+    val messages: List<Message> = state.activeSession?.messages ?: emptyList()
     var inputText by remember { mutableStateOf("") }
     val modelName = availableModels.find { it.id == state.activeModel }?.name ?: "Model"
 

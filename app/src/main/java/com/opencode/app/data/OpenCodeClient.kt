@@ -70,6 +70,8 @@ data class PromptPart(val type: String = "text", val text: String? = null)
 @Serializable
 data class ModelRef(val providerID: String, val modelID: String)
 
+data class ModelInfo(val id: String, val name: String, val provider: String, val color: Long = 0xFF65558F)
+
 val availableModels = listOf(
     ModelInfo("claude-sonnet", "Claude Sonnet 4", "Anthropic", 0xFFD97706),
     ModelInfo("gpt-4o", "GPT-4o", "OpenAI", 0xFF10A37F),

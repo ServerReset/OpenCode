@@ -149,16 +149,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             var attempts = 0
             while (attempts < 60) {
                 delay(1000)
-                when (val r = api.getMessages(sessionId)) {
-                    is Result.Success -> {
-                        val msgs = r.getOrThrow()
-                        val text = msgs.firstOrNull { it.info.id == assistantId }?.parts?.firstOrNull { it.type == "text" }?.text
-                        if (text != null) {
-                            _state.update { state -> state.copy(sessions = state.sessions.map { s -> if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m -> if (m.id == assistantId) m.copy(content = text) else m }) else s }) }
-                            if (text.isNotEmpty()) return@launch
-                        }
+                val r = api.getMessages(sessionId)
+                if (r.isSuccess) {
+                    val msgs = r.getOrThrow()
+                    val text = msgs.firstOrNull { it.info.id == assistantId }?.parts?.firstOrNull { it.type == "text" }?.text
+                    if (text != null) {
+                        _state.update { state -> state.copy(sessions = state.sessions.map { s -> if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m -> if (m.id == assistantId) m.copy(content = text) else m }) else s }) }
+                        if (text.isNotEmpty()) return@launch
                     }
-                    is Result.Failure -> { _state.update { it.copy(error = "Poll error") } }
+                } else {
+                    _state.update { it.copy(error = "Poll error") }
                 }
                 attempts++
             }
