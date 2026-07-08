@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenCode</string>
+    <string name="chat_title">Chat</string>
+    <string name="files_title">Files</string>
+    <string name="terminal_title">Terminal</string>
+    <string name="settings_title">Settings</string>
+    <string name="home_title">OpenCode</string>
+    <string name="send">Send</string>
+    <string name="select_model">Select Model</string>
+    <string name="new_session">New Session</string>
+    <string name="clear_session">Clear Session</string>
+    <string name="sessions">Sessions</string>
+    <string name="pinned">Pinned</string>
+    <string name="recent">Recent</string>
+    <string name="privacy_notice">OpenCode does not store any of your code or context data.</string>
+</resources>

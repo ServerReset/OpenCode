@@ -1,0 +1,4 @@
+-keepattributes *Annotation*
+-keepattributes SourceFile,LineNumberTable
+-keep class kotlinx.serialization.** { *; }
+-keepclassmembers class com.opencode.app.data.** { *; }
