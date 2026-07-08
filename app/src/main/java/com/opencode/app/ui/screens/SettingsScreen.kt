@@ -36,12 +36,12 @@ fun SettingsScreen(vm: AppViewModel, state: AppState) {
 
         SectionHeader("Appearance", scheme)
         SettingsGroup {
-            SettingsRow(Icons.Filled.DarkMode, "Dark Mode", "Toggle light/dark theme") {
+            SettingsRow(Icons.Filled.DarkMode, "Dark Mode", "Toggle light/dark theme", trailing = {
                 Switch(checked = androidx.compose.foundation.isSystemInDarkTheme(), onCheckedChange = {})
-            }
-            SettingsRow(Icons.Filled.Palette, "Dynamic Color", "Use Material You wallpaper colors") {
+            })
+            SettingsRow(Icons.Filled.Palette, "Dynamic Color", "Use Material You wallpaper colors", trailing = {
                 Switch(checked = true, onCheckedChange = {})
-            }
+            })
         }
 
         Spacer(Modifier.height(16.dp))
@@ -55,11 +55,11 @@ fun SettingsScreen(vm: AppViewModel, state: AppState) {
         Spacer(Modifier.height(16.dp))
         SectionHeader("Sessions (${state.sessions.size})", scheme)
         SettingsGroup {
-            SettingsRow(Icons.Filled.Delete, "Clear Current Session", "${state.activeSession?.messages?.size ?: 0} messages") {
+            SettingsRow(Icons.Filled.Delete, "Clear Current Session", "${state.activeSession?.messages?.size ?: 0} messages", trailing = {
                 FilledTonalButton(onClick = { vm.clearSession() }, colors = ButtonDefaults.filledTonalButtonColors(containerColor = scheme.errorContainer, contentColor = scheme.onErrorContainer)) {
                     Text("Clear", style = MaterialTheme.typography.labelMedium)
                 }
-            }
+            })
         }
 
         Spacer(Modifier.height(16.dp))
