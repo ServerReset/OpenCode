@@ -138,7 +138,7 @@ private fun SettingsRow(
     onClick: (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Surface(onClick = onClick ?: {}, modifier = Modifier.fillMaxWidth(), color = Color.Transparent) {
+    val content = @Composable {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(12.dp), color = scheme.surfaceVariant, modifier = Modifier.size(40.dp)) {
                 Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = scheme.primary, modifier = Modifier.size(20.dp)) }
@@ -148,8 +148,16 @@ private fun SettingsRow(
                 Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                 if (description != null) Text(description, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
             }
-            if (trailing != null) trailing()
-            else if (onClick != null) Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            if (trailing != null) {
+                trailing()
+            } else if (onClick != null) {
+                Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            }
         }
+    }
+    if (onClick != null) {
+        Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(), color = Color.Transparent, content = content)
+    } else {
+        Surface(modifier = Modifier.fillMaxWidth(), color = Color.Transparent, content = content)
     }
 }

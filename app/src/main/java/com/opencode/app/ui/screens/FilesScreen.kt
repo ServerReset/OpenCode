@@ -102,8 +102,9 @@ private fun FileNodeRow(node: FileTreeEntry, level: Int, selected: String?, expa
 
     if (node.isDirectory) {
         val isExpanded = expanded[node.path] == true
+        val bgColor = if (isExpanded) scheme.surfaceVariant.copy(alpha = 0.3f) else Color.Transparent
         Column {
-            Surface(onClick = { expanded[node.path] = !isExpanded }, modifier = Modifier.fillMaxWidth(), color = Color.Transparent) {
+            Surface(onClick = { expanded[node.path] = !isExpanded }, modifier = Modifier.fillMaxWidth(), color = bgColor) {
                 Row(Modifier.padding(start = pad.dp, end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(if (isExpanded) Icons.Filled.ArrowDropDown else Icons.Filled.ArrowRight, null, modifier = Modifier.size(16.dp), tint = scheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
@@ -116,7 +117,8 @@ private fun FileNodeRow(node: FileTreeEntry, level: Int, selected: String?, expa
         }
     } else {
         val isSel = selected == node.path
-        Surface(onClick = { onSelect(node.path, node.path) }, modifier = Modifier.fillMaxWidth(), color = if (isSel) scheme.primaryContainer else Color.Transparent) {
+        Surface(onClick = { onSelect(node.path, node.path) }, modifier = Modifier.fillMaxWidth(),
+            color = if (isSel) scheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent) {
             Row(Modifier.padding(start = (pad + 20).dp, end = 12.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.InsertDriveFile, null, modifier = Modifier.size(14.dp), tint = if (isSel) scheme.primary else scheme.onSurfaceVariant)
                 Spacer(Modifier.width(6.dp))
