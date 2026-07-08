@@ -67,16 +67,16 @@ class AppViewModel : ViewModel() {
     fun connect() {
         viewModelScope.launch {
             _state.update { it.copy(isConnecting = true, connectionError = null) }
-            when (val r = api.health()) {
-                is Result.Success -> {
+            api.health().fold(
+                onSuccess = {
                     _state.update { it.copy(isConnected = true, isConnecting = false) }
                     loadSessions()
-                }
-                is Result.Failure -> {
+                },
+                onFailure = { err ->
                     _state.update { it.copy(isConnected = false, isConnecting = false,
-                        connectionError = r.exceptionOrNull()?.message ?: "Connection failed") }
-                }
-            }
+                        connectionError = err.message ?: "Connection failed") }
+                },
+            )
         }
     }
 
@@ -129,22 +129,22 @@ class AppViewModel : ViewModel() {
                 state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + assistantMsg) else it })
             }
 
-            when (val r = api.sendPrompt(sessionId, content)) {
-                is Result.Success -> {
+            api.sendPrompt(sessionId, content).fold(
+                onSuccess = {
                     lastEventSeq = 0
                     startPolling(sessionId, assistantId)
-                }
-                is Result.Failure -> {
-                    val err = r.exceptionOrNull()?.message ?: "Send failed"
+                },
+                onFailure = { err ->
+                    val errMsg = err.message ?: "Send failed"
                     _state.update { state ->
                         state.copy(sessions = state.sessions.map { s ->
                             if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m ->
-                                if (m.id == assistantId) m.copy(content = err) else m
+                                if (m.id == assistantId) m.copy(content = errMsg) else m
                             }) else s
                         })
                     }
-                }
-            }
+                },
+            )
         }
     }
 
@@ -154,24 +154,22 @@ class AppViewModel : ViewModel() {
             _state.update { it.copy(error = null) }
             while (true) {
                 delay(500)
-                when (val r = api.getSessionEvents(sessionId, lastEventSeq)) {
-                    is Result.Success -> {
-                        val text = r.getOrNull() ?: continue
-                        if (text.isNotBlank()) {
-                            lastEventSeq++
-                            _state.update { state ->
-                                state.copy(sessions = state.sessions.map { s ->
-                                    if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m ->
-                                        if (m.id == assistantId) m.copy(content = m.content + text) else m
-                                    }) else s
-                                })
-                            }
+                val r = api.getSessionEvents(sessionId, lastEventSeq)
+                if (r.isSuccess) {
+                    val text = r.getOrNull() ?: continue
+                    if (text.isNotBlank()) {
+                        lastEventSeq++
+                        _state.update { state ->
+                            state.copy(sessions = state.sessions.map { s ->
+                                if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m ->
+                                    if (m.id == assistantId) m.copy(content = m.content + text) else m
+                                }) else s
+                            })
                         }
                     }
-                    is Result.Failure -> {
-                        _state.update { it.copy(error = "Event stream error") }
-                        delay(2000)
-                    }
+                } else {
+                    _state.update { it.copy(error = "Event stream error") }
+                    delay(2000)
                 }
             }
         }

@@ -26,10 +26,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val state by viewModel.state.collectAsState()
-            OpenCodeTheme(
-                darkTheme = state.isDarkMode,
-                dynamicColor = state.useDynamicColor,
-            ) {
+            OpenCodeTheme(darkTheme = state.isDarkMode) {
                 OpenCodeApp(viewModel, state)
             }
         }
