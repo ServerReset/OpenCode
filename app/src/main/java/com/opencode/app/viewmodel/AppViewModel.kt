@@ -104,7 +104,7 @@ class AppViewModel : ViewModel() {
     private suspend fun loadFileTree() {
         api.getFileTree().fold(
             onSuccess = { tree -> _state.update { it.copy(fileTree = tree) } },
-            onFailure = { _state.update { it.copy(error = "Failed to load files: ${it.message}") } },
+            onFailure = { err -> _state.update { it.copy(error = "Failed to load files: ${err.message}") } },
         )
     }
 
