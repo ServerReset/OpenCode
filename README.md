@@ -1,5 +1,7 @@
 # OpenCode Android
 
+![Build](https://github.com/ServerReset/OpenCode/actions/workflows/android.yml/badge.svg)
+
 Material 3 Expressive phone app for the [OpenCode](https://opencode.ai) AI coding agent.
 
 Built with Jetpack Compose and Material 3 Expressive.
