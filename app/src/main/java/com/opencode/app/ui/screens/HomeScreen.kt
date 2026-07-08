@@ -26,56 +26,71 @@ import com.opencode.app.viewmodel.AppViewModel
 @Composable
 fun HomeScreen(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
-    val modelName = availableModels.find { it.id == state.activeModel }?.name ?: "Model"
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        // Header
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
-            Surface(shape = MaterialTheme.shapes.large, color = scheme.primaryContainer, modifier = Modifier.size(56.dp)) {
-                Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Shield, null, tint = scheme.primary, modifier = Modifier.size(28.dp)) }
+        // Logo + status - compact header, no bar
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = MaterialTheme.shapes.medium, color = scheme.primaryContainer, modifier = Modifier.size(44.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Shield, null, tint = scheme.primary, modifier = Modifier.size(22.dp)) }
             }
-            Spacer(Modifier.height(12.dp))
-            Text("OpenCode", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-
-            // Status row
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(8.dp).background(if (state.isConnected) scheme.primary else scheme.error, RoundedCornerShape(50)))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    when { state.isConnected -> "Connected"; state.isConnecting -> "Connecting..."; else -> "Offline" },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (state.isConnected) scheme.primary else scheme.error,
-                )
-                if (state.isConnected) {
-                    Spacer(Modifier.width(12.dp))
-                    Text("· $modelName", style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("OpenCode", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(6.dp).background(if (state.isConnected) scheme.primary else scheme.error, RoundedCornerShape(50)))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        when { state.isConnected -> "Connected"; state.isConnecting -> "Connecting..."; else -> "Offline" },
+                        style = MaterialTheme.typography.labelSmall, color = if (state.isConnected) scheme.primary else scheme.error,
+                    )
                 }
             }
         }
 
-        // Quick actions
+        Spacer(Modifier.height(20.dp))
+
+        // Action buttons - full width, no fixed heights
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ActionCard(Icons.Filled.Add, "New Session", scheme.primary) { vm.createSession() }
-            ActionCard(Icons.Filled.Settings, "Settings", scheme.secondary) { vm.setScreen(Screen.SETTINGS) }
+            Surface(onClick = { vm.createSession() }, modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.large, color = scheme.primaryContainer) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    Icon(Icons.Filled.Add, null, tint = scheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("New Chat", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = scheme.primary)
+                }
+            }
+            Surface(onClick = { vm.setScreen(Screen.SETTINGS) }, modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    Icon(Icons.Filled.Settings, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Settings", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, color = scheme.onSurfaceVariant)
+                }
+            }
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(24.dp))
+
+        // Sessions header
         Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Sessions", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = scheme.primary)
             Spacer(Modifier.weight(1f))
-            if (!state.isConnected) {
-                TextButton(onClick = { vm.setScreen(Screen.SETTINGS) }) { Text("Connect", style = MaterialTheme.typography.labelMedium) }
+            if (state.isConnected && state.sessions.isNotEmpty()) {
+                Surface(onClick = { vm.createSession() }, shape = RoundedCornerShape(50), color = scheme.primaryContainer) {
+                    Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Add, null, tint = scheme.primary, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("New", style = MaterialTheme.typography.labelSmall, color = scheme.primary)
+                    }
+                }
             }
         }
         Spacer(Modifier.height(8.dp))
 
         if (state.sessions.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentAlignment = Alignment.TopCenter) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Spacer(Modifier.height(40.dp))
-                    Icon(Icons.Filled.Chat, null, tint = scheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(48.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 40.dp)) {
+                    Icon(Icons.Filled.Chat, null, tint = scheme.onSurfaceVariant.copy(alpha = 0.3f), modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(8.dp))
-                    Text(if (state.isConnected) "No sessions yet" else "Connect to load sessions", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+                    Text(if (state.isConnected) "No sessions yet. Tap + to start." else "Connect in Settings", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
                 }
             }
         } else {
@@ -84,10 +99,7 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
                     val isActive = session.id == state.activeSessionId
                     val msgCount = session.messages.size
                     Surface(
-                        modifier = Modifier.fillMaxWidth().clickable(
-                            interactionSource = remember { MutableInteractionSource() }, indication = null,
-                            onClick = { vm.switchToSession(session.id) },
-                        ),
+                        modifier = Modifier.fillMaxWidth().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { vm.switchToSession(session.id) }),
                         shape = MaterialTheme.shapes.medium,
                         color = if (isActive) scheme.primaryContainer else scheme.surfaceContainerHigh,
                     ) {
@@ -106,18 +118,6 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
                 }
                 item { Spacer(Modifier.height(80.dp)) }
             }
-        }
-    }
-}
-
-@Composable
-private fun ActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Surface(onClick = onClick, modifier = Modifier.height(100.dp).fillMaxWidth(), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh) {
-        Column(Modifier.fillMaxSize().padding(vertical = 18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.height(6.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
         }
     }
 }
