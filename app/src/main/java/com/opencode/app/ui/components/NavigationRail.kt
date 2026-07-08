@@ -30,7 +30,7 @@ fun ExpressiveNavRail(
     val pillYOffset = (itemHeight - pillHeight) / 2
 
     val indicatorOffset by animateDpAsState(
-        targetValue = if (activeIndex >= 0) activeIndex * itemHeight + pillYOffset else 0.dp,
+        targetValue = if (activeIndex >= 0) itemHeight.times(activeIndex) + pillYOffset else 0.dp,
         animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
         label = "railIndicator",
     )
