@@ -47,7 +47,6 @@ import kotlinx.coroutines.launch
 fun ChatScreen(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
     val messages = state.activeSession?.messages ?: emptyList()
     var inputText by remember { mutableStateOf("") }
 
@@ -143,7 +142,6 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
                                 onClick = {
                                     vm.setError(null)
                                     vm.sendMessage(inputText)
-                                    scope.launch { simulateResponse(inputText, vm) }
                                     inputText = ""
                                 },
                                 modifier = Modifier.size(40.dp),
@@ -358,38 +356,3 @@ private fun getTimeAgo(timestamp: Long): String {
     }
 }
 
-private suspend fun simulateResponse(prompt: String, vm: AppViewModel) {
-    vm.setStreaming(true)
-    val assistantId = java.util.UUID.randomUUID().toString()
-    vm.addAssistantMessage(Message(id = assistantId, role = Role.ASSISTANT, content = ""))
-
-    val lower = prompt.lowercase()
-    val response = when {
-        lower.contains("hello") || lower.contains("hi") || lower.contains("hey") ->
-            "Hey there! I'm OpenCode, your AI coding assistant. I can help you review, debug, and write code.\n\nTry asking me to **explain** a concept, **write** a function, or **debug** an issue."
-
-        lower.contains("bug") || lower.contains("error") || lower.contains("fix") ->
-            "Let me help debug that. Here's a common pattern in Compose:\n\n```kotlin\n// Check that state is properly observed\nval state by viewModel.state.collectAsState()\n\n// Ensure recomposition triggers\nLaunchedEffect(state.error) {\n    state.error?.let { handleError(it) }\n}\n```\n\nThe issue is commonly that state changes aren't triggering recomposition. Make sure your `StateFlow` is properly collected."
-
-        lower.contains("write") || lower.contains("create") || lower.contains("code") ->
-            "Here's a clean M3 Expressive button implementation:\n\n```kotlin\n@Composable\nfun M3EButton(\n    onClick: () -> Unit,\n    modifier: Modifier = Modifier,\n    enabled: Boolean = true,\n    content: @Composable RowScope.() -> Unit,\n) {\n    val interactionSource = remember { MutableInteractionSource() }\n    val isPressed by interactionSource.collectIsPressedAsState()\n\n    Button(\n        onClick = onClick,\n        modifier = modifier.height(40.dp),\n        enabled = enabled,\n        shape = RoundedCornerShape(if (isPressed) 8.dp else 50),\n        colors = ButtonDefaults.buttonColors(\n            containerColor = MaterialTheme.colorScheme.primary,\n            contentColor = MaterialTheme.colorScheme.onPrimary,\n        ),\n    ) { content() }\n}\n```\n\nThis follows the M3E spec with pressed shape morph (pill → square)."
-
-        lower.contains("explain") || lower.contains("what") || lower.contains("how") ->
-            "**How it works:**\n\nThis app follows the **M3 Expressive** design system with:\n- **Color**: 49-role scheme with dynamic color (Material You)\n- **Shape**: Cut corners on extraSmall, rounded elsewhere\n- **Motion**: Expressive springs (450ms default-spatial)\n- **Nav bar**: 64px height, 32×56 indicator pill\n\n```kotlin\n// State flows down, events flow up\nclass AppViewModel : ViewModel() {\n    private val _state = MutableStateFlow(AppState())\n    val state: StateFlow<AppState> = _state.asStateFlow()\n}\n```"
-
-        lower.contains("terminal") || lower.contains("command") ->
-            "The terminal supports these commands:\n```\nls          - List directory contents\npwd         - Print working directory\necho        - Display message\ncat         - Display file contents\ngit status  - Show git status\nnpm run     - Run npm scripts\nclear       - Clear terminal\nhelp        - Show all commands\n```\nJust type a command and press enter."
-
-        else ->
-            "I understand you're asking: \"$prompt\"\n\nI can help with:\n- **Code generation** — write new features and components\n- **Debugging** — find and fix issues in your code\n- **Code review** — analyze and improve implementations\n- **Architecture** — design patterns and best practices\n\nWhich direction would you like me to explore?"
-    }
-
-    val words = response.split(" ")
-    var current = ""
-    for (word in words) {
-        current += if (current.isEmpty()) word else " $word"
-        vm.updateAssistantMessage(assistantId, current)
-        delay((15 + Math.random() * 12).toLong())
-    }
-    vm.setStreaming(false)
-}

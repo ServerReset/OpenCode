@@ -6,6 +6,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.opencode.app.data.availableModels
 import com.opencode.app.viewmodel.AppState
@@ -24,6 +26,7 @@ import com.opencode.app.viewmodel.AppViewModel
 fun SettingsScreen(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
     val model = availableModels.find { it.id == state.activeModel }
+    var serverUrlInput by remember(state.isConnected, state.serverUrl) { mutableStateOf(state.serverUrl) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Surface(Modifier.fillMaxWidth(), color = scheme.surface, tonalElevation = 1.dp) {
@@ -34,6 +37,47 @@ fun SettingsScreen(vm: AppViewModel, state: AppState) {
         }
         Spacer(Modifier.height(20.dp))
 
+        // Server Connection
+        SectionHeader("Server", scheme)
+        SettingsGroup {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = serverUrlInput,
+                    onValueChange = { serverUrlInput = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("Server URL") },
+                    placeholder = { Text("http://192.168.1.100:4096") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    shape = RoundedCornerShape(12.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                FilledTonalButton(onClick = { vm.setServerUrl(serverUrlInput) }, enabled = !state.isConnecting && serverUrlInput.isNotBlank()) {
+                    if (state.isConnecting) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    Text("Connect")
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = RoundedCornerShape(50), color = if (state.isConnected) scheme.primary else scheme.errorContainer, modifier = Modifier.size(10.dp)) {}
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (state.isConnected) "Connected to ${state.serverUrl}" else if (state.isConnecting) "Connecting..." else "Not connected",
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                if (state.connectionError != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(state.connectionError, style = MaterialTheme.typography.labelSmall, color = scheme.error)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
         SectionHeader("Appearance", scheme)
         SettingsGroup {
             SettingsRow(Icons.Filled.DarkMode, "Dark Mode", "Toggle light/dark theme", trailing = {
@@ -48,7 +92,6 @@ fun SettingsScreen(vm: AppViewModel, state: AppState) {
         SectionHeader("AI & Models", scheme)
         SettingsGroup {
             SettingsRow(Icons.Filled.Bolt, "Default Model", model?.name ?: "Claude Sonnet 4", onClick = { vm.toggleModelPicker() })
-            SettingsRow(Icons.Filled.AccountCircle, "GitHub Copilot", "Connect your Copilot account", onClick = {})
             SettingsRow(Icons.Filled.Link, "Custom API Endpoint", "Connect any provider via API", onClick = {})
         }
 
@@ -63,15 +106,14 @@ fun SettingsScreen(vm: AppViewModel, state: AppState) {
         }
 
         Spacer(Modifier.height(16.dp))
-        SectionHeader("Privacy & About", scheme)
+        SectionHeader("About", scheme)
         SettingsGroup {
-            SettingsRow(Icons.Filled.Shield, "Privacy Notice", "We don't store your code or context", onClick = {})
-            SettingsRow(Icons.Filled.Info, "OpenCode", "v0.1 · Material 3 Expressive · Compose", onClick = {})
-            SettingsRow(Icons.Filled.Share, "Share Links", "Generate shareable session links", onClick = {})
+            SettingsRow(Icons.Filled.Shield, "Privacy", "We don't store your code or context", onClick = {})
+            SettingsRow(Icons.Filled.Info, "Version", "0.1 · Material 3 Expressive · Compose", onClick = {})
         }
 
         Spacer(Modifier.height(24.dp))
-        Text("OpenCode Phone · M3 Expressive · Jetpack Compose", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(bottom = 80.dp))
+        Text("OpenCode Phone · M3 Expressive", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(bottom = 80.dp))
     }
 }
 
@@ -96,6 +138,7 @@ private fun SettingsRow(
     onClick: (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val selected = trailing != null || onClick != null
     Surface(onClick = onClick ?: {}, modifier = Modifier.fillMaxWidth(), color = Color.Transparent) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(12.dp), color = scheme.surfaceVariant, modifier = Modifier.size(40.dp)) {
@@ -106,11 +149,8 @@ private fun SettingsRow(
                 Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                 if (description != null) Text(description, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
             }
-            if (trailing != null) {
-                trailing()
-            } else if (onClick != null) {
-                Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-            }
+            if (trailing != null) trailing()
+            else if (onClick != null) Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
     }
 }

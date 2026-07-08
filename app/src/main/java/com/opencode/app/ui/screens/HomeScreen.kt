@@ -49,6 +49,28 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
             Text("OpenCode", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, color = scheme.onBackground)
             Spacer(Modifier.height(6.dp))
             Text("Your AI coding agent, on mobile.", style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+
+            // Connection status
+            Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
+                color = if (state.isConnected) scheme.primaryContainer else scheme.errorContainer) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = MaterialTheme.shapes.extraSmall,
+                        color = if (state.isConnected) scheme.primary else scheme.error,
+                        modifier = Modifier.size(8.dp)) {}
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (state.isConnected) "Connected to ${state.serverUrl}"
+                        else if (state.isConnecting) "Connecting..."
+                        else "Not connected — go to Settings to configure your server",
+                        style = MaterialTheme.typography.labelSmall, color = if (state.isConnected) scheme.onPrimaryContainer else scheme.onErrorContainer,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    if (state.isConnected) {
+                        Icon(Icons.Filled.CheckCircle, null, tint = scheme.primary, modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = MaterialTheme.shapes.extraSmall, color = scheme.primaryContainer) {
