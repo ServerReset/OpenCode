@@ -1,90 +1,114 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opencode.app.ui.components
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.opencode.app.data.Screen
 import com.opencode.app.viewmodel.NavItem
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/** M3 Expressive NavigationBar: height 64, indicator pill 32x56, spring animation.
+ *  Active indicator: secondary-container, icon on-secondary-container, label secondary.
+ *  Inactive: on-surface-variant. */
 @Composable
-fun BottomNavBar(
+fun ExpressiveNavBar(
     currentScreen: Screen,
     onScreenSelected: (Screen) -> Unit,
     modifier: Modifier = Modifier,
-    bottomInset: Int = 0,
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val navItems = com.opencode.app.viewmodel.navItems
+    val activeIndex = navItems.indexOfFirst { it.screen == currentScreen }
+    val itemWidth = if (navItems.isEmpty()) 1f else 1f / navItems.size
+
+    // Animated indicator position with M3E spring
+    val indicatorOffset by animateDpAsState(
+        targetValue = if (activeIndex >= 0) (activeIndex * itemWidth * 1000).dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
+        label = "navIndicator",
+    )
+
     Surface(
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp,
+        modifier = modifier.fillMaxWidth(),
+        color = scheme.surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 0.dp,
+            // Active indicator pill - 32x56
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
             ) {
-                com.opencode.app.viewmodel.navItems.forEach { item ->
-                    val selected = currentScreen == item.screen
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = { onScreenSelected(item.screen) },
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) item.selectedIcon else item.icon,
-                                contentDescription = item.label,
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = item.label,
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                    )
-                }
-            }
-
-            // Animated active indicator pill
-            val navItems = com.opencode.app.viewmodel.navItems
-            val activeIndex = navItems.indexOfFirst { it.screen == currentScreen }
-            if (activeIndex >= 0) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp),
-                ) {
-                    val itemWidth = 1f / navItems.size
+                if (activeIndex >= 0) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(itemWidth)
-                            .fillMaxHeight()
-                            .offset(
-                                x = (activeIndex * itemWidth * 1000).dp / 1000
-                            ),
+                            .matchParentSize()
+                            .padding(horizontal = 8.dp),
                     ) {
-                        Surface(
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.6f)
-                                .fillMaxHeight()
-                                .align(Alignment.Center),
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = MaterialTheme.shapes.small,
-                        ) {}
+                                .width(
+                                    ((1000 / navItems.size) - 16).coerceAtLeast(32).dp
+                                )
+                                .height(32.dp)
+                                .offset(x = indicatorOffset)
+                                .align(Alignment.CenterStart)
+                                .drawBehind {
+                                    drawRoundRect(
+                                        color = scheme.secondaryContainer,
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f),
+                                    )
+                                },
+                        )
+                    }
+                }
+
+                // Tab items
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    navItems.forEach { item ->
+                        val selected = currentScreen == item.screen
+                        Surface(
+                            onClick = { onScreenSelected(item.screen) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            color = Color.Transparent,
+                            contentColor = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                Icon(
+                                    imageVector = if (selected) item.selectedIcon else item.icon,
+                                    contentDescription = item.label,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    item.label,
+                                    style = if (selected)
+                                        MaterialTheme.typography.labelMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                                    else MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        }
                     }
                 }
             }

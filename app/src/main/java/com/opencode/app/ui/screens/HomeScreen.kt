@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opencode.app.ui.screens
 
 import androidx.compose.foundation.layout.*
@@ -12,10 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.opencode.app.data.Screen
+import com.opencode.app.ui.components.M3EMorphButton
 import com.opencode.app.viewmodel.AppState
 import com.opencode.app.viewmodel.AppViewModel
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
@@ -24,11 +26,11 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
             .fillMaxSize()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 20.dp),
     ) {
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(32.dp))
 
-        // Logo and title
+        // Logo
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -36,236 +38,104 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
                 color = scheme.primaryContainer,
-                modifier = Modifier.size(72.dp),
+                modifier = Modifier.size(88.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Filled.Shield,
-                        contentDescription = null,
-                        tint = scheme.primary,
-                        modifier = Modifier.size(36.dp),
-                    )
+                    Icon(Icons.Filled.Shield, null, tint = scheme.primary, modifier = Modifier.size(44.dp))
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "OpenCode",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Black,
-                color = scheme.onBackground,
-            )
+            Spacer(Modifier.height(16.dp))
+            Text("OpenCode", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, color = scheme.onBackground)
+            Spacer(Modifier.height(6.dp))
+            Text("Your AI coding agent, on mobile.", style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
-            Text(
-                "Your AI coding agent, now on mobile.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = scheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = MaterialTheme.shapes.extraSmall, color = scheme.primaryContainer) {
+                    Text("M3 Expressive", modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = scheme.primary)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(28.dp))
+
+        // Quick actions grid
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                Triple(Icons.Filled.Chat, "New Chat", { vm.createSession(); vm.setScreen(Screen.CHAT) }),
+                Triple(Icons.Filled.SwapHoriz, "Multi", { vm.toggleSessionDrawer() }),
+                Triple(Icons.Filled.Terminal, "Terminal", { vm.setScreen(Screen.TERMINAL) }),
+                Triple(Icons.Filled.Settings, "Settings", { vm.setScreen(Screen.SETTINGS) }),
+            ).forEach { (icon, label, onClick) ->
+                Surface(
+                    onClick = onClick,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.medium,
+                    color = scheme.surfaceContainerHigh,
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(icon, null, tint = scheme.primary, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.height(6.dp))
+                        Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium, color = scheme.onSurface)
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.height(24.dp))
 
-        // Quick actions
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            QuickActionChip(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Chat,
-                label = "New Chat",
-                onClick = { vm.createSession(); vm.setScreen(Screen.CHAT) },
-            )
-            QuickActionChip(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Terminal,
-                label = "Terminal",
-                onClick = { vm.setScreen(Screen.TERMINAL) },
-            )
-            QuickActionChip(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Folder,
-                label = "Files",
-                onClick = { vm.setScreen(Screen.FILES) },
-            )
-            QuickActionChip(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Settings,
-                label = "Settings",
-                onClick = { vm.setScreen(Screen.SETTINGS) },
-            )
+        // Feature cards
+        SectionHeader("Features", scheme)
+        Spacer(Modifier.height(10.dp))
+
+        listOf(
+            Triple(Icons.Filled.Chat, "AI Chat", "Streaming responses, code blocks, 75+ LLM providers across 7 platforms", scheme.primary),
+            Triple(Icons.Filled.FolderOpen, "File Explorer", "Browse and edit project files with syntax-aware code viewer", scheme.secondary),
+            Triple(Icons.Filled.Terminal, "Terminal", "Full command execution with history, git support, and npm scripts", scheme.tertiary),
+            Triple(Icons.Filled.Layers, "Multi-Session", "Run parallel agents, pin favorites, share session links", scheme.primary),
+            Triple(Icons.Filled.Bolt, "Any Model", "Claude, GPT, Gemini, DeepSeek, Llama, Codestral, GitHub Copilot", scheme.secondary),
+        ).forEach { (icon, title, desc, color) ->
+            FeatureCard(icon, title, desc, color)
+            Spacer(Modifier.height(8.dp))
         }
 
-        Spacer(Modifier.height(24.dp))
-
-        // Features
-        SectionHeader("Features")
         Spacer(Modifier.height(8.dp))
-
-        FeatureCard(
-            icon = Icons.Filled.Chat,
-            title = "AI Chat",
-            description = "Intelligent coding agent powered by 75+ LLM providers",
-            color = scheme.primary,
-            onClick = { vm.setScreen(Screen.CHAT) },
-        )
-        Spacer(Modifier.height(8.dp))
-
-        FeatureCard(
-            icon = Icons.Filled.Folder,
-            title = "File Explorer",
-            description = "Browse, view, and edit project files with syntax highlighting",
-            color = scheme.secondary,
-            onClick = { vm.setScreen(Screen.FILES) },
-        )
-        Spacer(Modifier.height(8.dp))
-
-        FeatureCard(
-            icon = Icons.Filled.Terminal,
-            title = "Terminal",
-            description = "Execute commands and run scripts directly from your phone",
-            color = scheme.tertiary,
-            onClick = { vm.setScreen(Screen.TERMINAL) },
-        )
-        Spacer(Modifier.height(8.dp))
-
-        FeatureCard(
-            icon = Icons.Filled.Settings,
-            title = "Multi-Session",
-            description = "Run multiple parallel sessions with different models",
-            color = scheme.primary,
-            onClick = { vm.setScreen(Screen.SETTINGS) },
-        )
-
-        Spacer(Modifier.height(16.dp))
 
         // Privacy card
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = scheme.primaryContainer,
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    Icons.Filled.Shield,
-                    contentDescription = null,
-                    tint = scheme.primary,
-                    modifier = Modifier.size(24.dp),
-                )
+        Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = scheme.primaryContainer) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Shield, null, tint = scheme.primary, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Privacy First",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = scheme.onPrimaryContainer,
-                    )
-                    Text(
-                        "OpenCode does not store any of your code or context data.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = scheme.onPrimaryContainer.copy(alpha = 0.7f),
-                    )
+                Column(Modifier.weight(1f)) {
+                    Text("Privacy First", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = scheme.onPrimaryContainer)
+                    Text("We don't store your code or context data.", style = MaterialTheme.typography.bodySmall, color = scheme.onPrimaryContainer.copy(alpha = 0.7f))
                 }
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        // Extra padding for bottom nav
         Spacer(Modifier.height(80.dp))
     }
 }
 
 @Composable
-private fun QuickActionChip(
-    modifier: Modifier = Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        color = scheme.surfaceContainerHigh,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(
-                icon,
-                contentDescription = label,
-                tint = scheme.primary,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = scheme.onSurface,
-            )
-        }
-    }
+private fun SectionHeader(title: String, scheme: ColorScheme) {
+    Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = scheme.primary)
 }
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
-
-@Composable
-private fun FeatureCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    description: String,
-    color: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit,
-) {
+private fun FeatureCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, desc: String, color: Color) {
     val scheme = MaterialTheme.colorScheme
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = scheme.surfaceContainerHigh,
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = color.copy(alpha = 0.12f),
-                modifier = Modifier.size(48.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
-                }
+    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = MaterialTheme.shapes.medium, color = color.copy(alpha = 0.15f), modifier = Modifier.size(48.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(24.dp)) }
             }
             Spacer(Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant,
-                )
+                Text(desc, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             }
-            Icon(
-                Icons.Filled.ChevronRight,
-                contentDescription = null,
-                tint = scheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
+            Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
     }
 }

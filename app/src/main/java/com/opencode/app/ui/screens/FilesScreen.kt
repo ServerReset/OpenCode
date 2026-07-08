@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opencode.app.ui.screens
 
 import androidx.compose.foundation.*
@@ -11,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -21,265 +22,86 @@ import androidx.compose.ui.unit.sp
 import com.opencode.app.viewmodel.AppState
 import com.opencode.app.viewmodel.AppViewModel
 
-data class FileNode(
-    val name: String,
-    val path: String,
-    val isDirectory: Boolean = false,
-    val children: List<FileNode> = emptyList(),
-)
+data class FNode(val name: String, val path: String, val isDir: Boolean = false, val children: List<FNode> = emptyList())
 
-val sampleFileTree = FileNode(
-    name = "project", path = "/project", isDirectory = true,
-    children = listOf(
-        FileNode(name = "src", path = "/project/src", isDirectory = true, children = listOf(
-            FileNode(name = "App.kt", path = "/project/src/App.kt"),
-            FileNode(name = "MainActivity.kt", path = "/project/src/MainActivity.kt"),
-            FileNode(name = "ui", path = "/project/src/ui", isDirectory = true, children = listOf(
-                FileNode(name = "OpenCodeApp.kt", path = "/project/src/ui/OpenCodeApp.kt"),
-                FileNode(name = "theme", path = "/project/src/ui/theme", isDirectory = true, children = listOf(
-                    FileNode(name = "Theme.kt", path = "/project/src/ui/theme/Theme.kt"),
-                )),
-                FileNode(name = "screens", path = "/project/src/ui/screens", isDirectory = true, children = listOf(
-                    FileNode(name = "ChatScreen.kt", path = "/project/src/ui/screens/ChatScreen.kt"),
-                    FileNode(name = "FilesScreen.kt", path = "/project/src/ui/screens/FilesScreen.kt"),
-                    FileNode(name = "TerminalScreen.kt", path = "/project/src/ui/screens/TerminalScreen.kt"),
-                )),
+val sampleTree = FNode("project", "/project", true, listOf(
+    FNode("src", "/project/src", true, listOf(
+        FNode("App.kt", "/project/src/App.kt"),
+        FNode("MainActivity.kt", "/project/src/MainActivity.kt"),
+        FNode("ui", "/project/src/ui", true, listOf(
+            FNode("OpenCodeApp.kt", "/project/src/ui/OpenCodeApp.kt"),
+            FNode("Theme.kt", "/project/src/ui/Theme.kt"),
+            FNode("screens", "/project/src/ui/screens", true, listOf(
+                FNode("ChatScreen.kt", "/project/src/ui/screens/ChatScreen.kt"),
+                FNode("FilesScreen.kt", "/project/src/ui/screens/FilesScreen.kt"),
+                FNode("TerminalScreen.kt", "/project/src/ui/screens/TerminalScreen.kt"),
+                FNode("SettingsScreen.kt", "/project/src/ui/screens/SettingsScreen.kt"),
             )),
-            FileNode(name = "data", path = "/project/src/data", isDirectory = true, children = listOf(
-                FileNode(name = "Models.kt", path = "/project/src/data/Models.kt"),
-            )),
-            FileNode(name = "viewmodel", path = "/project/src/viewmodel", isDirectory = true, children = listOf(
-                FileNode(name = "AppViewModel.kt", path = "/project/src/viewmodel/AppViewModel.kt"),
+            FNode("components", "/project/src/ui/components", true, listOf(
+                FNode("M3EButtons.kt", "/project/src/ui/components/M3EButtons.kt"),
+                FNode("BottomNavBar.kt", "/project/src/ui/components/BottomNavBar.kt"),
             )),
         )),
-        FileNode(name = "build.gradle.kts", path = "/project/build.gradle.kts"),
-        FileNode(name = "settings.gradle.kts", path = "/project/settings.gradle.kts"),
-        FileNode(name = "AndroidManifest.xml", path = "/project/AndroidManifest.xml"),
-        FileNode(name = "README.md", path = "/project/README.md"),
-    ),
+        FNode("data", "/project/src/data", true, listOf(FNode("Models.kt", "/project/src/data/Models.kt"))),
+        FNode("viewmodel", "/project/src/viewmodel", true, listOf(FNode("AppViewModel.kt", "/project/src/viewmodel/AppViewModel.kt"))),
+    )),
+    FNode("build.gradle.kts", "/project/build.gradle.kts"),
+    FNode("settings.gradle.kts", "/project/settings.gradle.kts"),
+    FNode("README.md", "/project/README.md"),
+))
+
+val fileContents = mapOf(
+    "/project/src/ui/screens/ChatScreen.kt" to "package com.opencode.app.ui.screens\n\n@Composable\nfun ChatScreen(vm: AppViewModel, state: AppState) {\n    val messages = state.activeSession?.messages ?: emptyList()\n    LazyColumn(modifier = Modifier.weight(1f)) {\n        items(messages) { msg -> ChatBubble(msg, msg.role == Role.USER) }\n    }\n}",
+    "/project/README.md" to "# OpenCode Android\n\nMaterial 3 Expressive phone app.\n\n## Features\n- AI Chat with streaming\n- Multi-session\n- File explorer\n- Terminal\n- 10 model providers\n\n## Build\n```bash\n./gradlew assembleDebug\n```",
+    "/project/build.gradle.kts" to "plugins {\n    id(\"com.android.application\") version \"9.1.0\" apply false\n    kotlin(\"plugin.compose\") version \"2.2.20\"\n    kotlin(\"plugin.serialization\") version \"2.2.20\"\n}",
 )
 
-val sampleFileContents = mapOf(
-    "/project/src/ui/screens/ChatScreen.kt" to """package com.opencode.app.ui.screens
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun ChatScreen(vm: AppViewModel, state: AppState) {
-    val messages = state.activeSession?.messages ?: emptyList()
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Chat messages
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(messages) { msg ->
-                ChatBubble(message = msg, isUser = msg.role == Role.USER)
-            }
-        }
-        // Input bar
-        ChatInputBar(
-            onSend = { text -> vm.sendMessage(text) },
-            enabled = !state.isStreaming,
-        )
-    }
-}""",
-    "/project/README.md" to """# OpenCode Android
-
-Material 3 Expressive phone app for the OpenCode AI coding agent.
-
-Built with Jetpack Compose and Material 3 Expressive.
-
-## Features
-- AI-powered chat interface
-- Multi-session support
-- File browser & code editor
-- Built-in terminal
-- Model selection with 75+ providers
-- Share session links
-
-## Tech Stack
-- Kotlin 2.2.20
-- Jetpack Compose 1.12
-- Material 3 Expressive
-- AGP 9.1.0
-""",
-    "/project/build.gradle.kts" to """plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.plugin.serialization")
-}
-
-android {
-    namespace = "com.opencode.app"
-    compileSdk = 37
-    defaultConfig {
-        applicationId = "com.opencode.app"
-        minSdk = 26
-        targetSdk = 36
-    }
-}""",
-)
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FilesScreen(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
-    var showSplitView by remember { mutableStateOf(false) }
-    var selectedPath by remember { mutableStateOf("/project/src/ui/screens/ChatScreen.kt") }
-    var fileContent by remember { mutableStateOf(sampleFileContents[selectedPath] ?: "") }
+    val expanded = remember { mutableStateMapOf("/project/src" to true, "/project/src/ui" to true, "/project/src/ui/screens" to true) }
+    var selected by remember { mutableStateOf("/project/src/ui/screens/ChatScreen.kt") }
+    var content by remember { mutableStateOf(fileContents["/project/src/ui/screens/ChatScreen.kt"] ?: "") }
+    var showSplit by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        // Top bar
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = scheme.surface,
-            tonalElevation = 1.dp,
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { vm.toggleSessionDrawer() }) {
-                    Icon(Icons.Filled.Menu, contentDescription = "Menu")
-                }
-                Text(
-                    "Files",
-                    modifier = Modifier.weight(1f).padding(start = 8.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                IconButton(onClick = { showSplitView = !showSplitView }) {
-                    Icon(
-                        if (showSplitView) Icons.Filled.Fullscreen else Icons.Filled.Fullscreen,
-                        contentDescription = "Toggle split view",
-                    )
-                }
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Surface(Modifier.fillMaxWidth(), color = scheme.surface) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { vm.toggleSessionDrawer() }) { Icon(Icons.Filled.Menu, "Menu") }
+                Text("Files", modifier = Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                IconButton(onClick = { showSplit = !showSplit }) { Icon(if (showSplit) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen, "Split") }
             }
         }
 
-        Row(modifier = Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize()) {
             // File tree
-            if (!showSplitView || showSplitView) {
-                Surface(
-                    modifier = Modifier
-                        .width(if (showSplitView) 160.dp else 280.dp)
-                        .fillMaxHeight(),
-                    color = scheme.surface,
-                ) {
-                    LazyColumn {
-                        item {
-                            Text(
-                                "File Explorer",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = scheme.primary,
-                                modifier = Modifier.padding(12.dp),
-                            )
-                        }
-                        items(sampleFileTree.children) { node ->
-                            FileTreeNode(
-                                node = node,
-                                level = 0,
-                                selectedPath = selectedPath,
-                                expandedPaths = remember {
-                                    mutableStateMapOf(
-                                        "/project/src" to true,
-                                        "/project/src/ui" to true,
-                                    )
-                                },
-                                onSelect = { path ->
-                                    selectedPath = path
-                                    fileContent = sampleFileContents[path] ?: "// File: $path"
-                                },
-                            )
-                        }
-                    }
+            Surface(Modifier.width(if (showSplit) 140.dp else 260.dp).fillMaxHeight(), color = scheme.surface) {
+                LazyColumn {
+                    item { Text("File Explorer", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.primary, modifier = Modifier.padding(12.dp)) }
+                    items(sampleTree.children) { node -> FileNodeRow(node, 0, selected, expanded) { path, text -> selected = path; content = text } }
                 }
             }
 
-            // Code editor
-            if (!showSplitView || showSplitView) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                ) {
-                    // File header
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = scheme.surfaceContainerHigh,
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            val ext = selectedPath.substringAfterLast('.', "kt")
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = scheme.primaryContainer,
-                            ) {
-                                Text(
-                                    ext,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = scheme.onPrimaryContainer,
-                                )
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                selectedPath.substringAfterLast('/'),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
-                            )
-                            TextButton(onClick = {}) {
-                                Text("Save", style = MaterialTheme.typography.labelMedium)
-                            }
+            // Editor
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                Surface(Modifier.fillMaxWidth(), color = scheme.surfaceContainerHigh) {
+                    Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val ext = selected.substringAfterLast('.', "kt")
+                        Surface(shape = RoundedCornerShape(4.dp), color = scheme.primaryContainer) {
+                            Text(ext, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = scheme.onPrimaryContainer)
                         }
+                        Spacer(Modifier.width(8.dp))
+                        Text(selected.substringAfterLast('/'), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     }
-
-                    // Code content with line numbers
-                    val lines = fileContent.lines()
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        Column(
-                            modifier = Modifier
-                                .width(40.dp)
-                                .fillMaxHeight()
-                                .verticalScroll(rememberScrollState())
-                                .background(scheme.surfaceVariant)
-                                .padding(vertical = 8.dp),
-                        ) {
-                            lines.forEachIndexed { i, _ ->
-                                Text(
-                                    "${i + 1}",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 12.sp,
-                                    ),
-                                    color = scheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp),
-                                )
-                            }
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .verticalScroll(rememberScrollState())
-                                .padding(8.dp),
-                        ) {
-                            Text(
-                                fileContent,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 12.sp,
-                                    lineHeight = 20.sp,
-                                ),
-                                color = scheme.onSurface,
-                            )
-                        }
+                }
+                val lines = content.lines()
+                val scrollState = rememberScrollState()
+                Row(Modifier.fillMaxSize().background(scheme.surfaceVariant.copy(alpha = 0.3f))) {
+                    Column(Modifier.width(36.dp).fillMaxHeight().verticalScroll(scrollState).background(scheme.surfaceVariant).padding(vertical = 8.dp)) {
+                        lines.forEachIndexed { i, _ -> Text("${i + 1}", style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp), color = scheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp)) }
+                    }
+                    Box(Modifier.weight(1f).fillMaxHeight().verticalScroll(scrollState).padding(8.dp)) {
+                        Text(content, style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp), color = scheme.onSurface)
                     }
                 }
             }
@@ -288,87 +110,32 @@ fun FilesScreen(vm: AppViewModel, state: AppState) {
 }
 
 @Composable
-fun FileTreeNode(
-    node: FileNode,
-    level: Int,
-    selectedPath: String,
-    expandedPaths: MutableMap<String, Boolean>,
-    onSelect: (String) -> Unit,
-) {
+private fun FileNodeRow(node: FNode, level: Int, selected: String, expanded: MutableMap<String, Boolean>, onSelect: (String, String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val isExpanded = expandedPaths[node.path] == true
-    val isSelected = selectedPath == node.path
-    val paddingStart = 12 + level * 20
+    val pad = 12 + level * 18
 
-    if (node.isDirectory) {
+    if (node.isDir) {
+        val isExpanded = expanded[node.path] == true
+        val isSelected = selected == node.path
         Column {
-            Surface(
-                onClick = { expandedPaths[node.path] = !isExpanded },
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.Transparent,
-            ) {
-                Row(
-                    modifier = Modifier.padding(
-                        start = paddingStart.dp,
-                        end = 12.dp,
-                        top = 6.dp,
-                        bottom = 6.dp,
-                    ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        if (isExpanded) Icons.Filled.ArrowDropDown else Icons.Filled.ArrowRight,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = scheme.onSurfaceVariant,
-                    )
+            Surface(onClick = { expanded[node.path] = !isExpanded }, modifier = Modifier.fillMaxWidth(), color = Color.Transparent) {
+                Row(Modifier.padding(start = pad.dp, end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(if (isExpanded) Icons.Filled.ArrowDropDown else Icons.Filled.ArrowRight, null, modifier = Modifier.size(16.dp), tint = scheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
-                    Icon(
-                        if (isExpanded) Icons.Filled.FolderOpen else Icons.Filled.Folder,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = scheme.primary,
-                    )
+                    Icon(if (isExpanded) Icons.Filled.FolderOpen else Icons.Filled.Folder, null, modifier = Modifier.size(16.dp), tint = scheme.primary)
                     Spacer(Modifier.width(6.dp))
-                    Text(
-                        node.name,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Text(node.name, style = MaterialTheme.typography.bodySmall)
                 }
             }
-            if (isExpanded) {
-                node.children.forEach { child ->
-                    FileTreeNode(child, level + 1, selectedPath, expandedPaths, onSelect)
-                }
-            }
+            if (isExpanded) node.children.forEach { FileNodeRow(it, level + 1, selected, expanded, onSelect) }
         }
     } else {
-        Surface(
-            onClick = { onSelect(node.path) },
-            modifier = Modifier.fillMaxWidth(),
-            color = if (isSelected) scheme.primaryContainer else Color.Transparent,
-        ) {
-            Row(
-                modifier = Modifier.padding(
-                    start = (paddingStart + 20).dp,
-                    end = 12.dp,
-                    top = 5.dp,
-                    bottom = 5.dp,
-                ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    Icons.Filled.InsertDriveFile,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = if (isSelected) scheme.primary else scheme.onSurfaceVariant,
-                )
+        val isSel = selected == node.path
+        Surface(onClick = { onSelect(node.path, fileContents[node.path] ?: "// File: ${node.path}") }, modifier = Modifier.fillMaxWidth(), color = if (isSel) scheme.primaryContainer else Color.Transparent) {
+            Row(Modifier.padding(start = (pad + 20).dp, end = 12.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.InsertDriveFile, null, modifier = Modifier.size(14.dp), tint = if (isSel) scheme.primary else scheme.onSurfaceVariant)
                 Spacer(Modifier.width(6.dp))
-                Text(
-                    node.name,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                )
+                Text(node.name, style = MaterialTheme.typography.bodySmall, fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal)
             }
         }
     }
