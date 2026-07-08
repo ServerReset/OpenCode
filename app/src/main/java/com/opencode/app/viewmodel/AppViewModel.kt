@@ -112,7 +112,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val session = Session(id = info.id, name = info.name ?: "Session", model = _state.value.activeModel)
                     _state.update { it.copy(sessions = it.sessions + session, activeSessionId = session.id, currentScreen = Screen.CHAT) }
                 },
-                onFailure = { _state.update { it.copy(error = "Failed to create session: ${it.message}") } },
+                onFailure = { err -> _state.update { it.copy(error = "Failed to create session: ${err.message}") } },
             )
         }
     }

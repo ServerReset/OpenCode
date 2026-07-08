@@ -113,8 +113,8 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
 @Composable
 private fun ActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Surface(onClick = onClick, modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh) {
-        Column(Modifier.fillMaxWidth().padding(vertical = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Surface(onClick = onClick, modifier = Modifier.height(100.dp).fillMaxWidth(), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh) {
+        Column(Modifier.fillMaxSize().padding(vertical = 18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(icon, null, tint = color, modifier = Modifier.size(28.dp))
             Spacer(Modifier.height(6.dp))
             Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
