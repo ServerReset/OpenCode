@@ -120,9 +120,9 @@ private fun SectionHeader(title: String, scheme: ColorScheme) {
 }
 
 @Composable
-private fun FeatureCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, desc: String, color: Color, onClick: () -> Unit = {}) {
+private fun FeatureCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, desc: String, color: Color, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh, onClick = onClick) {
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = MaterialTheme.shapes.medium, color = color.copy(alpha = 0.15f), modifier = Modifier.size(48.dp)) {
                 Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(24.dp)) }
