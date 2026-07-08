@@ -6,42 +6,26 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opencode.app.data.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-data class TerminalEntry(
-    val type: String,
-    val text: String,
-    val timestamp: Long = System.currentTimeMillis(),
-)
+import java.util.UUID
 
 data class AppState(
     val currentScreen: Screen = Screen.HOME,
     val isDarkMode: Boolean = false,
-    val useDynamicColor: Boolean = true,
     val serverUrl: String = "http://10.0.2.2:4096",
     val isConnected: Boolean = false,
     val isConnecting: Boolean = false,
     val connectionError: String? = null,
-    val sessions: List<Session> = listOf(Session(name = "Default Session")),
+    val sessions: List<Session> = emptyList(),
     val activeSessionId: String = "",
-    val activeModel: String = "claude-sonnet",
-    val isStreaming: Boolean = false,
-    val terminalHistory: List<TerminalEntry> = listOf(
-        TerminalEntry("output", "OpenCode Terminal v1.0.0"),
-        TerminalEntry("output", "Connect to a server to execute commands."),
-    ),
-    val terminalInput: String = "",
-    val terminalCommandHistory: List<String> = emptyList(),
-    val terminalHistoryIndex: Int = -1,
-    val showModelPicker: Boolean = false,
-    val showSessionDrawer: Boolean = false,
+    val serverSessionId: String? = null,
     val error: String? = null,
-    val fileTree: List<FileTreeEntry> = emptyList(),
-    val fileContents: Map<String, String> = emptyMap(),
+    val showSessionDrawer: Boolean = false,
 ) {
     val activeSession: Session?
         get() = sessions.find { it.id == activeSessionId }
@@ -57,30 +41,25 @@ data class NavItem(
 val navItems = listOf(
     NavItem(Screen.HOME, "Home", Icons.Filled.Home, Icons.Filled.Home),
     NavItem(Screen.CHAT, "Chat", Icons.Filled.Chat, Icons.Filled.Chat),
-    NavItem(Screen.FILES, "Files", Icons.Filled.Folder, Icons.Filled.FolderOpen),
-    NavItem(Screen.TERMINAL, "Terminal", Icons.Filled.Terminal, Icons.Filled.Terminal),
     NavItem(Screen.SETTINGS, "Settings", Icons.Filled.Settings, Icons.Filled.Settings),
 )
 
 class AppViewModel : ViewModel() {
-    private val _state = MutableStateFlow(
-        AppState().copy(activeSessionId = AppState().sessions.first().id)
-    )
+    private val _state = MutableStateFlow(AppState())
     val state: StateFlow<AppState> = _state.asStateFlow()
     private val api get() = OpenCodeClient.instance
+    private var eventPollJob: kotlinx.coroutines.Job? = null
+    private var lastEventSeq = 0
 
     init {
         val url = _state.value.serverUrl
-        if (url.isNotBlank()) {
-            api.setUrl(url)
-            connect()
-        }
+        if (url.isNotBlank()) { api.setUrl(url); connect() }
     }
 
     fun setScreen(screen: Screen) { _state.update { it.copy(currentScreen = screen) } }
 
     fun setServerUrl(url: String) {
-        _state.update { it.copy(serverUrl = url) }
+        _state.update { it.copy(serverUrl = url, isConnected = false, connectionError = null) }
         api.setUrl(url)
         connect()
     }
@@ -88,145 +67,128 @@ class AppViewModel : ViewModel() {
     fun connect() {
         viewModelScope.launch {
             _state.update { it.copy(isConnecting = true, connectionError = null) }
-            val result = api.testConnection()
-            result.fold(
-                onSuccess = { msg ->
-                    _state.update { it.copy(isConnected = true, isConnecting = false, connectionError = null) }
-                    loadFileTree()
-                },
-                onFailure = { error ->
-                    _state.update { it.copy(isConnected = false, isConnecting = false, connectionError = error.message ?: "Connection failed") }
-                },
-            )
+            when (val r = api.health()) {
+                is Result.Success -> {
+                    _state.update { it.copy(isConnected = true, isConnecting = false) }
+                    loadSessions()
+                }
+                is Result.Failure -> {
+                    _state.update { it.copy(isConnected = false, isConnecting = false,
+                        connectionError = r.exceptionOrNull()?.message ?: "Connection failed") }
+                }
+            }
         }
     }
 
-    private suspend fun loadFileTree() {
-        api.getFileTree().fold(
-            onSuccess = { tree -> _state.update { it.copy(fileTree = tree) } },
-            onFailure = { err -> _state.update { it.copy(error = "Failed to load files: ${err.message}") } },
+    private suspend fun loadSessions() {
+        api.listSessions().fold(
+            onSuccess = { serverSessions ->
+                val local = serverSessions.map { s ->
+                    Session(id = s.id, name = s.name ?: "Session", model = "claude-sonnet")
+                }
+                _state.update {
+                    it.copy(sessions = local, activeSessionId = local.firstOrNull()?.id ?: "")
+                }
+            },
+            onFailure = { _state.update { it.copy(error = "Failed to load sessions") } },
         )
     }
 
-    fun toggleDarkMode() { _state.update { it.copy(isDarkMode = !it.isDarkMode) } }
-    fun toggleDynamicColor() { _state.update { it.copy(useDynamicColor = !it.useDynamicColor) } }
-    fun setActiveModel(modelId: String) { _state.update { it.copy(activeModel = modelId, showModelPicker = false) } }
-    fun toggleModelPicker() { _state.update { it.copy(showModelPicker = !it.showModelPicker) } }
-    fun toggleSessionDrawer() { _state.update { it.copy(showSessionDrawer = !it.showSessionDrawer) } }
-
-    fun createSession(name: String? = null) {
-        val session = Session(name = name ?: "Session ${_state.value.sessions.size + 1}", model = _state.value.activeModel)
-        _state.update { it.copy(sessions = it.sessions + session, activeSessionId = session.id, showSessionDrawer = false) }
-    }
-
-    fun deleteSession(id: String) {
-        _state.update { state ->
-            val sessions = state.sessions.filter { it.id != id }
-            val activeId = if (state.activeSessionId == id) sessions.firstOrNull()?.id ?: "" else state.activeSessionId
-            state.copy(sessions = sessions.ifEmpty { listOf(Session(name = "Default Session")) }, activeSessionId = activeId)
+    fun createSession() {
+        viewModelScope.launch {
+            _state.update { it.copy(error = null) }
+            api.createSession(null).fold(
+                onSuccess = { info ->
+                    val session = Session(id = info.id, name = info.name ?: "Session")
+                    _state.update { it.copy(sessions = it.sessions + session, activeSessionId = session.id, serverSessionId = session.id) }
+                },
+                onFailure = { _state.update { it.copy(error = "Failed to create session") } },
+            )
         }
     }
 
-    fun setActiveSession(id: String) { _state.update { it.copy(activeSessionId = id, showSessionDrawer = false) } }
-    fun pinSession(id: String) { _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == id) it.copy(pinned = !it.pinned) else it }) } }
+    fun setActiveSession(id: String) {
+        _state.update { it.copy(activeSessionId = id, showSessionDrawer = false) }
+        stopPolling()
+    }
 
     fun sendMessage(content: String) {
-        val msg = Message(role = Role.USER, content = content)
-        _state.update { state ->
-            state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + msg) else it })
-        }
+        val sessionId = _state.value.activeSessionId
+        if (sessionId.isBlank()) { _state.update { it.copy(error = "Create a session first") }; return }
+        if (!_state.value.isConnected) { _state.update { it.copy(error = "Not connected") }; return }
 
-        if (!_state.value.isConnected) {
-            _state.update { it.copy(error = "Not connected. Configure server in Settings.") }
-            return
+        val userMsg = Message(role = Role.USER, content = content)
+        _state.update { state ->
+            state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + userMsg) else it })
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isStreaming = true, error = null) }
-            val assistantId = java.util.UUID.randomUUID().toString()
+            val assistantId = UUID.randomUUID().toString()
+            val assistantMsg = Message(id = assistantId, role = Role.ASSISTANT, content = "")
             _state.update { state ->
-                state.copy(sessions = state.sessions.map { s ->
-                    if (s.id == state.activeSessionId) s.copy(messages = s.messages + Message(id = assistantId, role = Role.ASSISTANT, content = ""))
-                    else s
-                })
+                state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + assistantMsg) else it })
             }
 
-            val result = api.chat(ChatRequest(message = content, sessionId = _state.value.activeSessionId, model = _state.value.activeModel))
-            result.fold(
-                onSuccess = { response ->
+            when (val r = api.sendPrompt(sessionId, content)) {
+                is Result.Success -> {
+                    lastEventSeq = 0
+                    startPolling(sessionId, assistantId)
+                }
+                is Result.Failure -> {
+                    val err = r.exceptionOrNull()?.message ?: "Send failed"
                     _state.update { state ->
                         state.copy(sessions = state.sessions.map { s ->
-                            if (s.id == state.activeSessionId) {
-                                s.copy(messages = s.messages.map { m ->
-                                    if (m.id == assistantId) m.copy(content = response) else m
-                                })
-                            } else s
+                            if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m ->
+                                if (m.id == assistantId) m.copy(content = err) else m
+                            }) else s
                         })
                     }
-                },
-                onFailure = { error ->
-                    _state.update { state ->
-                        val errorMsg = "Error: ${error.message ?: "Request failed"}"
-                        state.copy(sessions = state.sessions.map { s ->
-                            if (s.id == state.activeSessionId) {
-                                s.copy(messages = s.messages.map { m ->
-                                    if (m.id == assistantId) m.copy(content = errorMsg) else m
+                }
+            }
+        }
+    }
+
+    private fun startPolling(sessionId: String, assistantId: String) {
+        stopPolling()
+        eventPollJob = viewModelScope.launch {
+            _state.update { it.copy(error = null) }
+            while (true) {
+                delay(500)
+                when (val r = api.getSessionEvents(sessionId, lastEventSeq)) {
+                    is Result.Success -> {
+                        val text = r.getOrNull() ?: continue
+                        if (text.isNotBlank()) {
+                            lastEventSeq++
+                            _state.update { state ->
+                                state.copy(sessions = state.sessions.map { s ->
+                                    if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { m ->
+                                        if (m.id == assistantId) m.copy(content = m.content + text) else m
+                                    }) else s
                                 })
-                            } else s
-                        }, error = errorMsg)
+                            }
+                        }
                     }
-                },
-            )
-            _state.update { it.copy(isStreaming = false) }
+                    is Result.Failure -> {
+                        _state.update { it.copy(error = "Event stream error") }
+                        delay(2000)
+                    }
+                }
+            }
         }
     }
 
-    fun addAssistantMessage(msg: Message) {
-        _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = it.messages + msg) else it }) }
-    }
+    private fun stopPolling() { eventPollJob?.cancel(); eventPollJob = null }
 
-    fun updateAssistantMessage(msgId: String, content: String) {
-        _state.update { state ->
-            state.copy(sessions = state.sessions.map { s ->
-                if (s.id == state.activeSessionId) s.copy(messages = s.messages.map { if (it.id == msgId) it.copy(content = content) else it })
-                else s
-            })
-        }
-    }
-
-    fun setStreaming(v: Boolean) { _state.update { it.copy(isStreaming = v) } }
-    fun setError(error: String?) { _state.update { it.copy(error = error) } }
-    fun clearError() { _state.update { it.copy(error = null) } }
+    fun toggleDarkMode() { _state.update { it.copy(isDarkMode = !it.isDarkMode) } }
+    fun toggleSessionDrawer() { _state.update { it.copy(showSessionDrawer = !it.showSessionDrawer) } }
 
     fun clearSession() {
-        _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = emptyList()) else it }) }
-    }
-
-    fun executeCommand(cmd: String) {
-        if (!_state.value.isConnected) {
-            _state.update { it.copy(terminalHistory = it.terminalHistory + TerminalEntry("error", "Not connected. Configure server in Settings.")) }
-            return
-        }
-
-        _state.update { it.copy(terminalHistory = it.terminalHistory + TerminalEntry("command", cmd)) }
-        viewModelScope.launch {
-            val result = api.executeCommand(cmd)
-            result.fold(
-                onSuccess = { res ->
-                    _state.update { state ->
-                        state.copy(terminalHistory = state.terminalHistory + TerminalEntry("output", res.output))
-                    }
-                },
-                onFailure = { error ->
-                    _state.update { state ->
-                        state.copy(terminalHistory = state.terminalHistory + TerminalEntry("error", "Error: ${error.message ?: "Command failed"}"))
-                    }
-                },
-            )
+        _state.update { state ->
+            state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = emptyList()) else it })
         }
     }
 
-    fun addTerminalEntry(entry: TerminalEntry) { _state.update { it.copy(terminalHistory = it.terminalHistory + entry) } }
-    fun clearTerminal() { _state.update { it.copy(terminalHistory = emptyList()) } }
-    fun addTerminalCommand(cmd: String) { _state.update { it.copy(terminalCommandHistory = it.terminalCommandHistory + cmd, terminalHistoryIndex = -1) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
+
+    override fun onCleared() { stopPolling(); super.onCleared() }
 }

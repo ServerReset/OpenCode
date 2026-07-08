@@ -11,43 +11,98 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
 @Serializable
-data class ChatRequest(
-    val message: String,
-    val sessionId: String? = null,
-    val model: String = "claude-sonnet",
-)
+data class HealthResponse(val healthy: Boolean)
 
 @Serializable
-data class ChatResponse(
-    val message: String,
-    val sessionId: String? = null,
-    val done: Boolean = true,
-)
-
-@Serializable
-data class FileTreeEntry(
+data class ModelInfo(
+    val id: String,
     val name: String,
-    val path: String,
-    val isDirectory: Boolean = false,
-    val children: List<FileTreeEntry> = emptyList(),
+    val provider: String,
+    val color: Long = 0xFF65558F,
 )
 
 @Serializable
-data class TerminalResult(
-    val output: String,
-    val error: String? = null,
+data class SessionInfo(
+    val id: String,
+    val name: String? = null,
+)
+
+@Serializable
+data class SessionCreateRequest(
+    val id: String? = null,
+    val agent: String? = null,
+    val model: String? = null,
+)
+
+@Serializable
+data class SessionCreateResponse(val data: SessionInfo)
+
+@Serializable
+data class SessionListResponse(
+    val data: List<SessionInfo>,
+    val cursor: CursorInfo? = null,
+)
+
+@Serializable
+data class CursorInfo(
+    val previous: String? = null,
+    val next: String? = null,
+)
+
+@Serializable
+data class PromptRequest(
+    val prompt: String,
+    val id: String? = null,
+    val delivery: String? = null,
+    val resume: Boolean? = null,
+)
+
+@Serializable
+data class AdmittedResponse(val data: AdmittedInfo)
+
+@Serializable
+data class AdmittedInfo(val id: String)
+
+@Serializable
+data class FileSystemEntry(
+    val name: String,
+    val path: String? = null,
+    val isDirectory: Boolean = false,
+    val children: List<FileSystemEntry> = emptyList(),
+)
+
+@Serializable
+data class FsListResponse(val data: List<FsEntry>)
+
+@Serializable
+data class FsEntry(
+    val name: String,
+    val type: String? = null,
+    val path: String? = null,
+)
+
+val availableModels = listOf(
+    ModelInfo("claude-opus", "Claude Opus 4", "Anthropic", 0xFFD97706),
+    ModelInfo("claude-sonnet", "Claude Sonnet 4", "Anthropic", 0xFFD97706),
+    ModelInfo("gpt-4o", "GPT-4o", "OpenAI", 0xFF10A37F),
+    ModelInfo("gpt-4o-mini", "GPT-4o Mini", "OpenAI", 0xFF10A37F),
+    ModelInfo("gemini-2.5-pro", "Gemini 2.5 Pro", "Google", 0xFF4285F4),
+    ModelInfo("gemini-2.5-flash", "Gemini 2.5 Flash", "Google", 0xFF4285F4),
+    ModelInfo("deepseek-v4", "DeepSeek V4", "DeepSeek", 0xFF6B5CE7),
+    ModelInfo("llama-4", "Llama 4 Maverick", "Meta", 0xFF0668E1),
+    ModelInfo("codestral", "Codestral", "Mistral", 0xFFF59E0B),
 )
 
 class OpenCodeClient(private var baseUrl: String = "") {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
-    private val JSON = "application/json".toMediaType()
+    private val JSON_MEDIA = "application/json".toMediaType()
 
     var connected: Boolean = false
         private set
@@ -60,140 +115,112 @@ class OpenCodeClient(private var baseUrl: String = "") {
         lastError = null
     }
 
-    private fun Request.Builder.addJsonHeaders() = apply {
+    private fun Request.Builder.jsonHeaders() = apply {
         addHeader("Accept", "application/json")
         addHeader("Content-Type", "application/json")
-        addHeader("User-Agent", "OpenCode-Android/1.0")
     }
 
-    private fun parseError(res: okhttp3.Response): String {
-        return try {
-            val body = res.body?.string()
-            if (body.isNullOrBlank()) "Server error (HTTP ${res.code})"
-            else if (res.code == 404) "Endpoint not found. Check your server URL."
-            else if (res.code >= 500) "Server error (${res.code}). Is opencode web running?"
-            else body
-        } catch (e: Exception) {
-            "HTTP ${res.code}"
-        }
-    }
+    private fun get(path: String): Request = Request.Builder().url("$baseUrl$path").jsonHeaders().get().build()
+    private fun post(path: String, body: String): Request =
+        Request.Builder().url("$baseUrl$path").jsonHeaders().post(body.toRequestBody(JSON_MEDIA)).build()
 
-    suspend fun testConnection(): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun health(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder().url("$baseUrl/api/health")
-                .addJsonHeaders().get().build()
-            val res = client.newCall(req).execute()
+            val res = client.newCall(get("/api/health")).execute()
             if (res.isSuccessful) {
-                connected = true
-                lastError = null
-                Result.success(res.body?.string() ?: "connected")
+                connected = true; lastError = null; Result.success(Unit)
             } else {
                 connected = false
-                val msg = parseError(res)
-                lastError = msg
-                Result.failure(Exception(msg))
+                val msg = when (res.code) {
+                    404 -> "Server not found. Check URL."
+                    401, 403 -> "Authentication required. Set password in server URL."
+                    else -> "Server error (${res.code})"
+                }
+                lastError = msg; Result.failure(Exception(msg))
             }
-        } catch (e: java.net.UnknownHostException) {
-            connected = false
-            lastError = "Cannot reach host. Check IP/URL."
-            Result.failure(lastError?.let { Exception(it) } ?: e)
         } catch (e: java.net.ConnectException) {
-            connected = false
-            lastError = "Connection refused. Is the server running?"
-            Result.failure(lastError?.let { Exception(it) } ?: e)
-        } catch (e: javax.net.ssl.SSLException) {
-            connected = false
-            lastError = "SSL error. Try http:// instead of https://"
-            Result.failure(lastError?.let { Exception(it) } ?: e)
-        } catch (e: java.net.SocketTimeoutException) {
-            connected = false
-            lastError = "Connection timed out. Check IP/port."
-            Result.failure(lastError?.let { Exception(it) } ?: e)
+            connected = false; lastError = "Connection refused"; Result.failure(e)
+        } catch (e: java.net.UnknownHostException) {
+            connected = false; lastError = "Unknown host"; Result.failure(e)
         } catch (e: Exception) {
-            connected = false
-            val msg = e.message ?: "Unknown error"
-            lastError = when {
-                msg.contains("Cleartext") -> "HTTP blocked by Android. App fix applied — rebuild."
-                msg.contains("Unable to resolve host") -> "Cannot resolve hostname. Use IP address."
-                msg.contains("Failed to connect") -> "Connection failed. Is the server on?"
-                else -> msg
-            }
-            Result.failure(lastError?.let { Exception(it) } ?: e)
+            connected = false; lastError = e.message; Result.failure(e)
         }
     }
 
-    suspend fun chat(request: ChatRequest): Result<String> = withContext(Dispatchers.IO) {
-        if (!connected) return@withContext Result.failure(Exception("Not connected"))
+    suspend fun listModels(): Result<List<ModelInfo>> = withContext(Dispatchers.IO) {
         try {
-            val body = json.encodeToString(ChatRequest.serializer(), request)
-                .toRequestBody(JSON)
-            val req = Request.Builder()
-                .url("$baseUrl/api/chat")
-                .addJsonHeaders()
-                .post(body)
-                .build()
-            val res = client.newCall(req).execute()
+            val res = client.newCall(get("/api/model")).execute()
+            if (res.isSuccessful) Result.success(json.decodeFromString(res.body?.string() ?: "[]"))
+            else Result.failure(Exception("HTTP ${res.code}"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun listSessions(): Result<List<SessionInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val res = client.newCall(get("/api/session")).execute()
             if (res.isSuccessful) {
-                Result.success(res.body?.string() ?: "")
+                val body = res.body?.string() ?: "{\"data\":[]}"
+                Result.success(json.decodeFromString<SessionListResponse>(body).data)
+            } else Result.failure(Exception("HTTP ${res.code}"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun createSession(modelId: String?): Result<SessionInfo> = withContext(Dispatchers.IO) {
+        try {
+            val req = SessionCreateRequest(model = modelId)
+            val body = json.encodeToString(SessionCreateRequest.serializer(), req)
+            val res = client.newCall(post("/api/session", body)).execute()
+            if (res.isSuccessful) {
+                val resp = json.decodeFromString<SessionCreateResponse>(res.body?.string() ?: "{}")
+                Result.success(resp.data)
+            } else Result.failure(Exception("HTTP ${res.code}"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun sendPrompt(sessionId: String, prompt: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val req = PromptRequest(prompt = prompt)
+            val body = json.encodeToString(PromptRequest.serializer(), req)
+            val res = client.newCall(post("/api/session/$sessionId/prompt", body)).execute()
+            if (res.isSuccessful) {
+                val resp = json.decodeFromString<AdmittedResponse>(res.body?.string() ?: "{}")
+                Result.success(resp.data.id)
             } else {
-                val msg = if (res.code == 404) "Chat endpoint not found" else "HTTP ${res.code}"
-                lastError = msg
+                val errBody = res.body?.string()
+                val msg = if (errBody?.contains("conflict") == true) "Session busy. Wait a moment."
+                else "HTTP ${res.code}"
                 Result.failure(Exception(msg))
             }
-        } catch (e: Exception) {
-            lastError = e.message
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun getFileTree(): Result<List<FileTreeEntry>> = withContext(Dispatchers.IO) {
+    /** Fetch session events (SSE-style). Returns raw event lines. */
+    suspend fun getSessionEvents(sessionId: String, after: Int = 0): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder().url("$baseUrl/api/files").get().build()
-            val res = client.newCall(req).execute()
-            if (res.isSuccessful) {
-                val body = res.body?.string() ?: "[]"
-                val tree = json.decodeFromString<List<FileTreeEntry>>(body)
-                Result.success(tree)
-            } else {
-                Result.failure(Exception("HTTP ${res.code}: ${res.message}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+            val res = client.newCall(get("/api/session/$sessionId/event?after=$after")).execute()
+            if (res.isSuccessful) Result.success(res.body?.string() ?: "")
+            else Result.failure(Exception("HTTP ${res.code}"))
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun getFileContent(path: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun listFs(path: String = ""): Result<List<FsEntry>> = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder().url("$baseUrl/api/files?path=$path").get().build()
-            val res = client.newCall(req).execute()
+            val url = if (path.isBlank()) "/api/fs/list" else "/api/fs/list?path=$path"
+            val res = client.newCall(get(url)).execute()
             if (res.isSuccessful) {
-                Result.success(res.body?.string() ?: "")
-            } else {
-                Result.failure(Exception("HTTP ${res.code}: ${res.message}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+                val body = res.body?.string() ?: "{\"data\":[]}"
+                val resp = json.decodeFromString<FsListResponse>(body)
+                Result.success(resp.data)
+            } else Result.failure(Exception("HTTP ${res.code}"))
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun executeCommand(command: String): Result<TerminalResult> = withContext(Dispatchers.IO) {
+    suspend fun readFile(path: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val body = json.encodeToString(TerminalResult.serializer(), TerminalResult(command, null))
-                .toRequestBody(JSON)
-            val req = Request.Builder()
-                .url("$baseUrl/api/terminal")
-                .post(body)
-                .build()
-            val res = client.newCall(req).execute()
-            if (res.isSuccessful) {
-                val result = json.decodeFromString<TerminalResult>(res.body?.string() ?: "{}")
-                Result.success(result)
-            } else {
-                Result.failure(Exception("HTTP ${res.code}: ${res.message}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+            val res = client.newCall(get("/api/fs/read/$path")).execute()
+            if (res.isSuccessful) Result.success(res.body?.string() ?: "")
+            else Result.failure(Exception("HTTP ${res.code}"))
+        } catch (e: Exception) { Result.failure(e) }
     }
 
     companion object {
