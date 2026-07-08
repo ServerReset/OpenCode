@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.opencode.app.data.availableModels
@@ -105,8 +106,8 @@ private fun SettingsRow(
                 Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                 if (description != null) Text(description, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
             }
-            if (trailing != null) trailing()
-            else if (onClick != null) Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            trailing?.let { it() }
+                ?: if (onClick != null) Icon(Icons.Filled.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
     }
 }

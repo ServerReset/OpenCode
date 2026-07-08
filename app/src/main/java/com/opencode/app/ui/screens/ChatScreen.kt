@@ -3,6 +3,7 @@
 package com.opencode.app.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -146,7 +147,7 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
                                     inputText = ""
                                 },
                                 modifier = Modifier.size(40.dp),
-                                shape = RoundedCornerShape(50),
+                                shape = RoundedCornerShape(50.dp),
                                 color = scheme.primary,
                                 enabled = !state.isStreaming,
                             ) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Send, "Send", tint = scheme.onPrimary, modifier = Modifier.size(18.dp)) } }
@@ -205,7 +206,7 @@ private fun RichTextContent(content: String, scheme: ColorScheme) {
                             Row(Modifier.fillMaxWidth().background(scheme.surfaceVariant).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Filled.Code, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text(part.language, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, textTransform = androidx.compose.ui.text.intl.Locale.current?.let { androidx.compose.ui.text.toUpperCase(part.language, it) } ?: part.language)
+                                Text(part.language.uppercase(), style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
                             }
                             Text(part.code, modifier = Modifier.padding(12.dp).horizontalScroll(rememberScrollState()), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp))
                         }
@@ -241,7 +242,7 @@ fun ThinkingIndicator() {
     Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         repeat(3) { i ->
             val alpha by animateFloatAsState(targetValue = 0.4f, animationSpec = infiniteRepeatable(animation = tween(600, delayMillis = i * 150), repeatMode = RepeatMode.Reverse), label = "dot")
-            Box(Modifier.size(6.dp).clip(RoundedCornerShape(50)).background(scheme.primary.copy(alpha = alpha)))
+            Box(Modifier.size(6.dp).clip(RoundedCornerShape(50.dp)).background(scheme.primary.copy(alpha = alpha)))
             Spacer(Modifier.width(4.dp))
         }
         Spacer(Modifier.width(8.dp))

@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.opencode.app.data.Screen
@@ -88,16 +89,12 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
         SectionHeader("Features", scheme)
         Spacer(Modifier.height(10.dp))
 
-        listOf(
-            Triple(Icons.Filled.Chat, "AI Chat", "Streaming responses, code blocks, 75+ LLM providers across 7 platforms", scheme.primary),
-            Triple(Icons.Filled.FolderOpen, "File Explorer", "Browse and edit project files with syntax-aware code viewer", scheme.secondary),
-            Triple(Icons.Filled.Terminal, "Terminal", "Full command execution with history, git support, and npm scripts", scheme.tertiary),
-            Triple(Icons.Filled.Layers, "Multi-Session", "Run parallel agents, pin favorites, share session links", scheme.primary),
-            Triple(Icons.Filled.Bolt, "Any Model", "Claude, GPT, Gemini, DeepSeek, Llama, Codestral, GitHub Copilot", scheme.secondary),
-        ).forEach { (icon, title, desc, color) ->
-            FeatureCard(icon, title, desc, color)
-            Spacer(Modifier.height(8.dp))
-        }
+        FeatureCard(Icons.Filled.Chat, "AI Chat", "Streaming responses, code blocks, 75+ LLM providers across 7 platforms", scheme.primary)
+        Spacer(Modifier.height(8.dp))
+        FeatureCard(Icons.Filled.Layers, "Multi-Session", "Run parallel agents, pin favorites, share session links", scheme.primary)
+        Spacer(Modifier.height(8.dp))
+        FeatureCard(Icons.Filled.Bolt, "Any Model", "Claude, GPT, Gemini, DeepSeek, Llama, Codestral, GitHub Copilot", scheme.secondary)
+        Spacer(Modifier.height(8.dp))
 
         Spacer(Modifier.height(8.dp))
 

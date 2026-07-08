@@ -184,7 +184,7 @@ fun OpenCodeTheme(
 
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
-        motionScheme = MotionScheme.expressive(),
+        motionScheme = MotionScheme.expressive(shapes = ExpressiveShapes),
         typography = expressiveTypography(),
         shapes = ExpressiveShapes,
         content = content,

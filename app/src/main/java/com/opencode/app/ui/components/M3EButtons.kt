@@ -45,7 +45,7 @@ fun M3EFilledButton(
         modifier = modifier.height(40.dp),
         enabled = enabled,
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(if (isPressed) 8.dp else 50),
+        shape = RoundedCornerShape(if (isPressed) 8.dp else 50.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -74,7 +74,7 @@ fun M3ETonalButton(
         onClick = onClick,
         modifier = modifier.height(40.dp),
         enabled = enabled,
-        shape = RoundedCornerShape(50),
+        shape = RoundedCornerShape(50.dp),
         colors = ButtonDefaults.filledTonalButtonColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -103,7 +103,7 @@ fun M3EOutlinedButton(
         onClick = onClick,
         modifier = modifier.height(40.dp),
         enabled = enabled,
-        shape = RoundedCornerShape(50),
+        shape = RoundedCornerShape(50.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.colorScheme.primary,
@@ -154,7 +154,7 @@ fun M3EChip(
         onClick = onClick,
         modifier = modifier.heightIn(min = 32.dp),
         enabled = enabled,
-        shape = RoundedCornerShape(50),
+        shape = RoundedCornerShape(50.dp),
         color = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHighest,
         contentColor = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
         border = if (selected) null else BorderStroke(1.dp, scheme.outlineVariant),
@@ -189,7 +189,7 @@ fun M3EToggleChip(
     label: String,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = if (selected) RoundedCornerShape(8.dp) else RoundedCornerShape(50)
+    val shape = if (selected) RoundedCornerShape(8.dp) else RoundedCornerShape(50.dp)
     val containerColor = if (selected) scheme.primary else scheme.surfaceContainerHighest
     val contentColor = if (selected) scheme.onPrimary else scheme.onSurface
 
@@ -222,7 +222,7 @@ fun M3EMorphButton(
     Surface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(if (active) 12.dp else 50),
+        shape = RoundedCornerShape(if (active) 12.dp else 50.dp),
         color = if (active) scheme.primary else scheme.surfaceContainerHigh,
         contentColor = if (active) scheme.onPrimary else scheme.onSurface,
     ) {
