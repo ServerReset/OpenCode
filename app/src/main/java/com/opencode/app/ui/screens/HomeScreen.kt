@@ -89,11 +89,11 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
         SectionHeader("Features", scheme)
         Spacer(Modifier.height(10.dp))
 
-        FeatureCard(Icons.Filled.Chat, "AI Chat", "Streaming responses, code blocks, 75+ LLM providers across 7 platforms", scheme.primary)
+        FeatureCard(Icons.Filled.Chat, "AI Chat", "Streaming responses, code blocks, 75+ LLM providers across 7 platforms", scheme.primary, onClick = { vm.setScreen(Screen.CHAT) })
         Spacer(Modifier.height(8.dp))
-        FeatureCard(Icons.Filled.Layers, "Multi-Session", "Run parallel agents, pin favorites, share session links", scheme.primary)
+        FeatureCard(Icons.Filled.Layers, "Multi-Session", "Run parallel agents, pin favorites, share session links", scheme.primary, onClick = { vm.toggleSessionDrawer() })
         Spacer(Modifier.height(8.dp))
-        FeatureCard(Icons.Filled.Bolt, "Any Model", "Claude, GPT, Gemini, DeepSeek, Llama, Codestral, GitHub Copilot", scheme.secondary)
+        FeatureCard(Icons.Filled.Bolt, "Any Model", "Claude, GPT, Gemini, DeepSeek, Llama, Codestral, GitHub Copilot", scheme.secondary, onClick = { vm.toggleModelPicker() })
         Spacer(Modifier.height(8.dp))
 
         Spacer(Modifier.height(8.dp))
@@ -120,9 +120,9 @@ private fun SectionHeader(title: String, scheme: ColorScheme) {
 }
 
 @Composable
-private fun FeatureCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, desc: String, color: Color) {
+private fun FeatureCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, desc: String, color: Color, onClick: () -> Unit = {}) {
     val scheme = MaterialTheme.colorScheme
-    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh) {
+    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh, onClick = onClick) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = MaterialTheme.shapes.medium, color = color.copy(alpha = 0.15f), modifier = Modifier.size(48.dp)) {
                 Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(24.dp)) }

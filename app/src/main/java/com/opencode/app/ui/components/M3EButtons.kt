@@ -34,11 +34,6 @@ fun M3EFilledButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val shape by animateColorAsState(
-        targetValue = Color.Transparent,
-        animationSpec = spring(),
-        label = "shapeState",
-    )
 
     Button(
         onClick = onClick,

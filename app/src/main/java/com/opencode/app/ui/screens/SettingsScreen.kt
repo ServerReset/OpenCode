@@ -37,10 +37,10 @@ fun SettingsScreen(vm: AppViewModel, state: AppState) {
         SectionHeader("Appearance", scheme)
         SettingsGroup {
             SettingsRow(Icons.Filled.DarkMode, "Dark Mode", "Toggle light/dark theme", trailing = {
-                Switch(checked = androidx.compose.foundation.isSystemInDarkTheme(), onCheckedChange = {})
+                Switch(checked = state.isDarkMode, onCheckedChange = { vm.toggleDarkMode() })
             })
             SettingsRow(Icons.Filled.Palette, "Dynamic Color", "Use Material You wallpaper colors", trailing = {
-                Switch(checked = true, onCheckedChange = {})
+                Switch(checked = state.useDynamicColor, onCheckedChange = { vm.toggleDynamicColor() })
             })
         }
 

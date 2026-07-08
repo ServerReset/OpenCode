@@ -17,7 +17,9 @@ data class TerminalEntry(
 )
 
 data class AppState(
-    val currentScreen: Screen = Screen.CHAT,
+    val currentScreen: Screen = Screen.HOME,
+    val isDarkMode: Boolean = false,
+    val useDynamicColor: Boolean = true,
     val sessions: List<Session> = listOf(Session(name = "Default Session")),
     val activeSessionId: String = "",
     val activeModel: String = "claude-sonnet",
@@ -58,6 +60,14 @@ class AppViewModel : ViewModel() {
 
     fun setScreen(screen: Screen) {
         _state.update { it.copy(currentScreen = screen) }
+    }
+
+    fun toggleDarkMode() {
+        _state.update { it.copy(isDarkMode = !it.isDarkMode) }
+    }
+
+    fun toggleDynamicColor() {
+        _state.update { it.copy(useDynamicColor = !it.useDynamicColor) }
     }
 
     fun setActiveModel(modelId: String) {

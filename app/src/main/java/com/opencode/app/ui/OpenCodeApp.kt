@@ -17,9 +17,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.opencode.app.data.Screen
 import com.opencode.app.ui.components.ExpressiveNavBar
+import com.opencode.app.ui.components.ExpressiveNavRail
 import com.opencode.app.ui.screens.*
 import com.opencode.app.viewmodel.AppState
 import com.opencode.app.viewmodel.AppViewModel
@@ -27,55 +29,51 @@ import com.opencode.app.viewmodel.AppViewModel
 @Composable
 fun OpenCodeApp(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
+    val config = LocalConfiguration.current
+    val isTablet = config.screenWidthDp >= 600
 
-    // Edge-to-edge gradient background (bloo pattern)
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = Color.Transparent,
-    ) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Full-bleed gradient
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                scheme.surfaceContainerHigh,
-                                scheme.surface,
-                                scheme.surfaceContainerLow,
-                            ),
-                        ),
-                    ),
-            )
+            Box(Modifier.matchParentSize().background(
+                Brush.verticalGradient(listOf(scheme.surfaceContainerHigh, scheme.surface, scheme.surfaceContainerLow)),
+            ))
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Main content area (fills remaining space above nav bar)
-                Box(modifier = Modifier.weight(1f)) {
-                    AnimatedContent(
-                        targetState = state.currentScreen,
-                        transitionSpec = {
-                            val sign = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                            (slideInHorizontally { it / 3 * sign } + fadeIn()) togetherWith
-                                (slideOutHorizontally { -it / 3 * sign } + fadeOut())
-                        },
-                        label = "screen",
-                    ) { screen ->
-                        when (screen) {
-                            Screen.HOME -> HomeScreen(vm, state)
-                            Screen.CHAT -> ChatScreen(vm, state)
-                            Screen.FILES -> FilesScreen(vm, state)
-                            Screen.TERMINAL -> TerminalScreen(vm, state)
-                            Screen.SETTINGS -> SettingsScreen(vm, state)
-                        }
-                    }
+            Row(modifier = Modifier.fillMaxSize()) {
+                if (isTablet) {
+                    ExpressiveNavRail(
+                        currentScreen = state.currentScreen,
+                        onScreenSelected = { vm.setScreen(it) },
+                    )
                 }
 
-                // Bottom navigation bar
-                ExpressiveNavBar(
-                    currentScreen = state.currentScreen,
-                    onScreenSelected = { vm.setScreen(it) },
-                )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        AnimatedContent(
+                            targetState = state.currentScreen,
+                            transitionSpec = {
+                                val sign = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                                (slideInHorizontally { it / 3 * sign } + fadeIn()) togetherWith
+                                    (slideOutHorizontally { -it / 3 * sign } + fadeOut())
+                            },
+                            label = "screen",
+                        ) { screen ->
+                            when (screen) {
+                                Screen.HOME -> HomeScreen(vm, state)
+                                Screen.CHAT -> ChatScreen(vm, state)
+                                Screen.FILES -> FilesScreen(vm, state)
+                                Screen.TERMINAL -> TerminalScreen(vm, state)
+                                Screen.SETTINGS -> SettingsScreen(vm, state)
+                            }
+                        }
+                    }
+
+                    if (!isTablet) {
+                        ExpressiveNavBar(
+                            currentScreen = state.currentScreen,
+                            onScreenSelected = { vm.setScreen(it) },
+                        )
+                    }
+                }
             }
         }
     }
