@@ -196,6 +196,7 @@ class AppViewModel : ViewModel() {
 
     fun setStreaming(v: Boolean) { _state.update { it.copy(isStreaming = v) } }
     fun setError(error: String?) { _state.update { it.copy(error = error) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     fun clearSession() {
         _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = emptyList()) else it }) }

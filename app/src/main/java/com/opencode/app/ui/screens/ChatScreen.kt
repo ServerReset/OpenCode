@@ -41,7 +41,6 @@ import com.opencode.app.ui.components.M3ETonalButton
 import com.opencode.app.viewmodel.AppState
 import com.opencode.app.viewmodel.AppViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(vm: AppViewModel, state: AppState) {
@@ -54,6 +53,14 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    }
+
+    // Auto-dismiss errors after 5s
+    LaunchedEffect(state.error) {
+        if (state.error != null) {
+            delay(5000)
+            vm.clearError()
+        }
     }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {

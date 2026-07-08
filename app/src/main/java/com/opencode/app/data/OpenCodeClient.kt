@@ -44,49 +44,104 @@ class OpenCodeClient(private var baseUrl: String = "") {
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
         .build()
     private val JSON = "application/json".toMediaType()
 
     var connected: Boolean = false
         private set
+    var lastError: String? = null
+        private set
 
     fun setUrl(url: String) {
         baseUrl = url.trimEnd('/')
         connected = false
+        lastError = null
+    }
+
+    private fun Request.Builder.addJsonHeaders() = apply {
+        addHeader("Accept", "application/json")
+        addHeader("Content-Type", "application/json")
+        addHeader("User-Agent", "OpenCode-Android/1.0")
+    }
+
+    private fun parseError(res: okhttp3.Response): String {
+        return try {
+            val body = res.body?.string()
+            if (body.isNullOrBlank()) "Server error (HTTP ${res.code})"
+            else if (res.code == 404) "Endpoint not found. Check your server URL."
+            else if (res.code >= 500) "Server error (${res.code}). Is opencode web running?"
+            else body
+        } catch (e: Exception) {
+            "HTTP ${res.code}"
+        }
     }
 
     suspend fun testConnection(): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder().url("$baseUrl/api/health").get().build()
+            val req = Request.Builder().url("$baseUrl/api/health")
+                .addJsonHeaders().get().build()
             val res = client.newCall(req).execute()
             if (res.isSuccessful) {
                 connected = true
+                lastError = null
                 Result.success(res.body?.string() ?: "connected")
             } else {
                 connected = false
-                Result.failure(Exception("HTTP ${res.code}: ${res.message}"))
+                val msg = parseError(res)
+                lastError = msg
+                Result.failure(Exception(msg))
             }
+        } catch (e: java.net.UnknownHostException) {
+            connected = false
+            lastError = "Cannot reach host. Check IP/URL."
+            Result.failure(lastError?.let { Exception(it) } ?: e)
+        } catch (e: java.net.ConnectException) {
+            connected = false
+            lastError = "Connection refused. Is the server running?"
+            Result.failure(lastError?.let { Exception(it) } ?: e)
+        } catch (e: javax.net.ssl.SSLException) {
+            connected = false
+            lastError = "SSL error. Try http:// instead of https://"
+            Result.failure(lastError?.let { Exception(it) } ?: e)
+        } catch (e: java.net.SocketTimeoutException) {
+            connected = false
+            lastError = "Connection timed out. Check IP/port."
+            Result.failure(lastError?.let { Exception(it) } ?: e)
         } catch (e: Exception) {
             connected = false
-            Result.failure(e)
+            val msg = e.message ?: "Unknown error"
+            lastError = when {
+                msg.contains("Cleartext") -> "HTTP blocked by Android. App fix applied — rebuild."
+                msg.contains("Unable to resolve host") -> "Cannot resolve hostname. Use IP address."
+                msg.contains("Failed to connect") -> "Connection failed. Is the server on?"
+                else -> msg
+            }
+            Result.failure(lastError?.let { Exception(it) } ?: e)
         }
     }
 
     suspend fun chat(request: ChatRequest): Result<String> = withContext(Dispatchers.IO) {
+        if (!connected) return@withContext Result.failure(Exception("Not connected"))
         try {
             val body = json.encodeToString(ChatRequest.serializer(), request)
                 .toRequestBody(JSON)
             val req = Request.Builder()
                 .url("$baseUrl/api/chat")
+                .addJsonHeaders()
                 .post(body)
                 .build()
             val res = client.newCall(req).execute()
             if (res.isSuccessful) {
                 Result.success(res.body?.string() ?: "")
             } else {
-                Result.failure(Exception("HTTP ${res.code}: ${res.message}"))
+                val msg = if (res.code == 404) "Chat endpoint not found" else "HTTP ${res.code}"
+                lastError = msg
+                Result.failure(Exception(msg))
             }
         } catch (e: Exception) {
+            lastError = e.message
             Result.failure(e)
         }
     }

@@ -138,7 +138,6 @@ private fun SettingsRow(
     onClick: (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val selected = trailing != null || onClick != null
     Surface(onClick = onClick ?: {}, modifier = Modifier.fillMaxWidth(), color = Color.Transparent) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(12.dp), color = scheme.surfaceVariant, modifier = Modifier.size(40.dp)) {
