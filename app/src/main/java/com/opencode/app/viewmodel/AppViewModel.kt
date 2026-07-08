@@ -27,7 +27,10 @@ data class AppState(
     val activeModel: String = "claude-sonnet",
     val showModelPicker: Boolean = false,
     val error: String? = null,
-)
+) {
+    val activeSession: Session?
+        get() = sessions.find { it.id == activeSessionId }
+}
 
 data class NavItem(
     val screen: Screen,
