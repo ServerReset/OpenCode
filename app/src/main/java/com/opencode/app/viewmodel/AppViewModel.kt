@@ -109,12 +109,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             api.getMessages(id).fold(
                 onSuccess = { msgs ->
                     val messages = msgs.mapNotNull { m ->
-                        val role = when (m.info.role) { "user" -> Role.USER; "assistant" -> Role.ASSISTANT; else -> null } ?: return@mapNotNull null
+                        val role = when (m.info.role.lowercase()) { "user" -> Role.USER; "assistant" -> Role.ASSISTANT; else -> null } ?: return@mapNotNull null
                         Message(id = m.info.id, role = role, content = m.parts.firstOrNull { it.type == "text" }?.text ?: "")
                     }
                     _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == id) it.copy(messages = messages) else it }) }
                 },
-                onFailure = { _state.update { it.copy(error = "Messages failed") } },
+                onFailure = { _state.update { it.copy(error = "Failed to load messages") } },
             )
         }
     }

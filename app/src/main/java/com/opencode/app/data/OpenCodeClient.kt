@@ -83,11 +83,13 @@ class OpenCodeClient {
     }
 
     suspend fun getMessages(sessionId: String): Result<List<ServerMsg>> = withContext(Dispatchers.IO) {
-        try { val r = client.newCall(req("/api/session/$sessionId/message")).execute()
+        try {
+            // Try reference paths first: /session/:id/message (known to work with opencode servers)
+            val r = client.newCall(req("/session/$sessionId/message")).execute()
             if (r.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(r.body?.string() ?: "{\"data\":[]}").data)
             else {
-                // Try without /api/ prefix as fallback
-                val r2 = client.newCall(req("/session/$sessionId/message")).execute()
+                // Fallback: try /api/session/:id/message
+                val r2 = client.newCall(req("/api/session/$sessionId/message")).execute()
                 if (r2.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(r2.body?.string() ?: "{\"data\":[]}").data)
                 else Result.failure(Exception("HTTP ${r.code} / ${r2.code}"))
             }
@@ -97,15 +99,16 @@ class OpenCodeClient {
     suspend fun sendPrompt(sessionId: String, text: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val body = json.encodeToString(PromptReq.serializer(), PromptReq(parts = listOf(PromptPart(text = text))))
-            // Try /api/session/:id/prompt first, then /session/:id/message as fallback
-            val r = client.newCall(req("/api/session/$sessionId/prompt", "POST", body)).execute()
+            // Reference app approach: POST /session/:id/message
+            val r = client.newCall(req("/session/$sessionId/message", "POST", body)).execute()
             if (r.isSuccessful) Result.success(Unit)
             else {
-                // Try /session/:id/message as fallback (reference app approach)
-                val r2 = client.newCall(req("/session/$sessionId/message", "POST", body)).execute()
+                // Fallback: POST /api/session/:id/prompt
+                val r2 = client.newCall(req("/api/session/$sessionId/prompt", "POST", body)).execute()
                 if (r2.isSuccessful) Result.success(Unit)
                 else {
-                    val msg = if ((r2.body?.string() ?: "").contains("conflict")) "Session busy" else "HTTP ${r.code}/${r2.code}"
+                    val errBody = r2.body?.string() ?: r.body?.string() ?: ""
+                    val msg = if (errBody.contains("conflict")) "Session busy" else "HTTP ${r.code}/${r2.code}"
                     Result.failure(Exception(msg))
                 }
             }
