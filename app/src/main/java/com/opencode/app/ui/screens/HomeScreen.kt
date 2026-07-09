@@ -95,7 +95,7 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
             Spacer(Modifier.height(12.dp))
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 20.dp, bottom = 80.dp),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(state.sessions, key = { it.id }) { session ->
