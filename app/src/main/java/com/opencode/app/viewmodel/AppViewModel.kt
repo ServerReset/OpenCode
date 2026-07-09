@@ -53,7 +53,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(isConnecting = true, error = null) }
             api.health().fold(
                 onSuccess = { _state.update { it.copy(isConnected = true, isConnecting = false) }; loadSessions() },
-                onFailure = { _state.update { it.copy(isConnected = false, isConnecting = false, error = it.message) } },
+                onFailure = { err -> _state.update { it.copy(isConnected = false, isConnecting = false, error = err.message) } },
             )
         }
     }
@@ -129,15 +129,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
             api.sendPrompt(sid, text).fold(
                 onSuccess = {
-                    // Poll for the response
                     var attempts = 0
                     while (attempts < 30) {
                         delay(2000)
                         api.getMessages(sid).fold(
                             onSuccess = { msgs ->
-                                val text = msgs.firstOrNull { it.info.id == aid }?.parts?.firstOrNull { it.type == "text" }?.text
-                                if (text != null && text.isNotBlank()) {
-                                    _state.update { s -> s.copy(sessions = s.sessions.map { if (it.id == s.activeSessionId) it.copy(messages = it.messages.map { m -> if (m.id == aid) m.copy(content = text) else m }) else s }) }
+                                val t = msgs.firstOrNull { it.info.id == aid }?.parts?.firstOrNull { it.type == "text" }?.text
+                                if (t != null && t.isNotBlank()) {
+                                    _state.update { state ->
+                                        state.copy(sessions = state.sessions.map { sess ->
+                                            if (sess.id == state.activeSessionId) {
+                                                sess.copy(messages = sess.messages.map { m -> if (m.id == aid) m.copy(content = t) else m })
+                                            } else sess
+                                        })
+                                    }
                                     return@launch
                                 }
                             },
@@ -146,7 +151,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         attempts++
                     }
                 },
-                onFailure = { e -> _state.update { s -> s.copy(sessions = s.sessions.map { if (it.id == s.activeSessionId) it.copy(messages = it.messages.map { m -> if (m.id == aid) m.copy(content = "Error: ${e.message}") else m }) else s }) } },
+                onFailure = { e ->
+                    _state.update { state ->
+                        state.copy(sessions = state.sessions.map { sess ->
+                            if (sess.id == state.activeSessionId) {
+                                sess.copy(messages = sess.messages.map { m -> if (m.id == aid) m.copy(content = "Error: ${e.message}") else m })
+                            } else sess
+                        })
+                    }
+                },
             )
         }
     }
