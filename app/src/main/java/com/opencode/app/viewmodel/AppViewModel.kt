@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+data class Todo(val id: String, val text: String, val done: Boolean = false)
+
 data class AppState(
     val currentScreen: Screen = Screen.HOME,
     val isDarkMode: Boolean = false,
@@ -27,6 +29,8 @@ data class AppState(
     val activeSessionId: String = "",
     val activeModel: String = "claude-sonnet",
     val showModelPicker: Boolean = false,
+    val showTodos: Boolean = false,
+    val todos: List<Todo> = emptyList(),
     val error: String? = null,
 ) {
     val activeSession: Session? get() = sessions.find { it.id == activeSessionId }
@@ -189,6 +193,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleDarkMode() { val n = !_state.value.isDarkMode; prefs.isDarkMode = n; _state.update { it.copy(isDarkMode = n) } }
+    fun toggleTodos() { _state.update { it.copy(showTodos = !it.showTodos) } }
+    fun addTodo(text: String) { _state.update { it.copy(todos = it.todos + Todo(id = UUID.randomUUID().toString(), text = text), showTodos = true) } }
+    fun toggleTodoDone(id: String) { _state.update { state -> state.copy(todos = state.todos.map { if (it.id == id) it.copy(done = !it.done) else it }) } }
+    fun removeTodo(id: String) { _state.update { state -> state.copy(todos = state.todos.filter { it.id != id }) } }
     fun clearSession() { _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == state.activeSessionId) it.copy(messages = emptyList()) else it }) } }
     fun clearError() { _state.update { it.copy(error = null) } }
 }

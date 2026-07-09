@@ -2,6 +2,13 @@
 
 package com.opencode.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -171,14 +178,31 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
 @Composable
 fun ChatBubble(msg: Message, isUser: Boolean) {
     val scheme = MaterialTheme.colorScheme
+    var showThinking by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
         if (!isUser) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() }, indication = null,
+                onClick = { showThinking = !showThinking },
+            )) {
                 Surface(shape = RoundedCornerShape(8.dp), color = scheme.primary, modifier = Modifier.size(20.dp)) {
                     Box(contentAlignment = Alignment.Center) { Text("O", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = scheme.onSecondaryContainer ?: scheme.onPrimary) }
                 }
                 Spacer(Modifier.width(6.dp))
                 Text("OpenCode", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.width(6.dp))
+                Icon(if (showThinking) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, modifier = Modifier.size(14.dp), tint = scheme.onSurfaceVariant)
+            }
+            // Thinking panel (expandable)
+            AnimatedVisibility(visible = showThinking, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                Surface(Modifier.fillMaxWidth().padding(bottom = 4.dp), shape = RoundedCornerShape(12.dp), color = scheme.surfaceVariant.copy(alpha = 0.5f)) {
+                    Row(Modifier.padding(10.dp)) {
+                        Icon(Icons.Filled.Psychology, null, tint = scheme.tertiary, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("The model is reasoning about this response. Chain-of-thought processing happens server-side and is streamed back via SSE events.", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                    }
+                }
             }
             Spacer(Modifier.height(4.dp))
         }

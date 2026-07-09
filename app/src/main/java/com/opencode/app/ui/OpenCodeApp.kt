@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.opencode.app.data.Screen
-import com.opencode.app.ui.components.ExpressiveNavBar
+import com.opencode.app.ui.components.AppBottomBar
 import com.opencode.app.ui.screens.*
 import com.opencode.app.viewmodel.AppState
 import com.opencode.app.viewmodel.AppViewModel
@@ -52,9 +52,11 @@ fun OpenCodeApp(vm: AppViewModel, state: AppState) {
                     }
                 }
 
-                ExpressiveNavBar(
+                AppBottomBar(
                     currentScreen = state.currentScreen,
                     onScreenSelected = { vm.setScreen(it) },
+                    vm = vm,
+                    state = state,
                 )
             }
         }
