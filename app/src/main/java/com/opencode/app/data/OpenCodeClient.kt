@@ -87,12 +87,25 @@ class OpenCodeClient {
             val r = client.newCall(req("/session/$sessionId/message")).execute()
             val rawBody = r.body?.string() ?: ""
             if (r.isSuccessful) {
-                Result.success(json.decodeFromString<MsgListResp>(rawBody).data)
+                // Server returns either {"data": [...]} or just [...]
+                val msgs = try {
+                    json.decodeFromString<MsgListResp>(rawBody).data
+                } catch (_: Exception) {
+                    try { json.decodeFromString<List<ServerMsg>>(rawBody) } catch (_: Exception) { emptyList() }
+                }
+                Result.success(msgs)
             } else {
                 val r2 = client.newCall(req("/api/session/$sessionId/message")).execute()
                 val rawBody2 = r2.body?.string() ?: ""
-                if (r2.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(rawBody2).data)
-                else Result.failure(Exception("Messages API failed. HTTP ${r.code} (${rawBody.take(200)}) / ${r2.code} (${rawBody2.take(200)})"))
+                if (r2.isSuccessful) {
+                    val msgs = try {
+                        json.decodeFromString<MsgListResp>(rawBody2).data
+                    } catch (_: Exception) {
+                        try { json.decodeFromString<List<ServerMsg>>(rawBody2) } catch (_: Exception) { emptyList() }
+                    }
+                    Result.success(msgs)
+                }
+                else Result.failure(Exception("HTTP ${r.code}/${r2.code}: ${(rawBody + rawBody2).take(200)}"))
             }
         } catch (e: Exception) { Result.failure(e) }
     }
