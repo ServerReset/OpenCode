@@ -47,7 +47,7 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize().statusBarsPadding(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp, bottom = 120.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 100.dp),
             ) {
                 items(messages, key = { it.id }) { msg ->
                     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = if (msg.role == Role.USER) Alignment.End else Alignment.Start) {
