@@ -45,10 +45,12 @@ fun AppBottomBar(currentScreen: Screen, onScreenSelected: (Screen) -> Unit, vm: 
     var todoInput by remember { mutableStateOf("") }
 
     val activeIndex = items.indexOfFirst { it.screen == currentScreen }
-    val itemWidth = if (barWidth > 0 && items.isNotEmpty()) barWidth / items.size else 0
+    val itemWidthPx = if (barWidth > 0f && items.isNotEmpty()) barWidth / items.size else 0f
 
     val indicatorOffset by animateDpAsState(
-        targetValue = if (activeIndex >= 0 && itemWidth > 0) with(density) { (activeIndex * itemWidth).toDp() } else 0.dp,
+        targetValue = if (activeIndex >= 0 && itemWidthPx > 0f) {
+            (activeIndex.toFloat() * itemWidthPx).toDp()
+        } else 0.dp,
         animationSpec = spring(dampingRatio = 0.7f, stiffness = 400f),
         label = "navIndicator",
     )
@@ -128,7 +130,7 @@ fun AppBottomBar(currentScreen: Screen, onScreenSelected: (Screen) -> Unit, vm: 
                 Box(modifier = Modifier.fillMaxWidth().offset(x = indicatorOffset)) {
                     Box(
                         modifier = Modifier
-                            .width(with(density) { (itemWidth - 8).toDp().coerceAtLeast(0.dp) })
+                            .width(with(density) { (itemWidthPx - 8f).toDp().coerceAtLeast(0.dp) })
                             .height(44.dp)
                             .padding(4.dp)
                             .background(scheme.secondaryContainer, RoundedCornerShape(22.dp)),
@@ -137,7 +139,9 @@ fun AppBottomBar(currentScreen: Screen, onScreenSelected: (Screen) -> Unit, vm: 
 
                 // Tab items
                 Row(
-                    modifier = Modifier.fillMaxSize().onGloballyPositioned { coords -> barWidth = coords.size.width.toFloat() },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { c -> barWidth = c.size.width.toFloat() },
                 ) {
                     items.forEach { item ->
                         val selected = currentScreen == item.screen
