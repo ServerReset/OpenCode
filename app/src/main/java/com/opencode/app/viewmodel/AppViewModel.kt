@@ -12,8 +12,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-data class Todo(val id: String, val text: String, val done: Boolean = false)
-
 data class AppState(
     val screen: Screen = Screen.HOME,
     val isDarkMode: Boolean = false,
@@ -26,7 +24,6 @@ data class AppState(
     val activeSessionId: String = "",
     val activeModel: String = "claude-sonnet",
     val account: AccountInfo? = null,
-    val showAccountLogin: Boolean = false,
     val error: String? = null,
 ) {
     val activeSession: Session? get() = sessions.find { it.id == activeSessionId }
@@ -63,13 +60,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(isConnecting = true, error = null) }
             api.health().fold(
                 onSuccess = {
-                    // Health passed - now test that we can actually list sessions
                     api.listSessions().fold(
                         onSuccess = { _state.update { it.copy(isConnected = true, isConnecting = false) }; processSessions(it) },
-                        onFailure = { e ->
-                            // Health works but sessions fails - likely auth issue
-                            _state.update { it.copy(isConnected = true, isConnecting = false, error = "Server reachable, but ${e.message ?: "session list failed"}. Check password.") }
-                        },
+                        onFailure = { e -> _state.update { it.copy(isConnected = true, isConnecting = false, error = "Server: ${e.message}") } },
                     )
                 },
                 onFailure = { _state.update { it.copy(isConnecting = false, error = "Cannot reach server") } },
@@ -81,12 +74,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val withMessages = list.map { s -> s to api.getMessages(s.id).getOrNull() }
             val sessions = withMessages.map { (s, msgs) ->
-            val sessions = withMessages.map { (s, msgs) ->
                 val name = s.title ?: s.id.take(8)
                 val messages = msgs?.mapNotNull { m ->
                     val role = when (m.info.role.lowercase()) { "user" -> Role.USER; "assistant" -> Role.ASSISTANT; else -> null } ?: return@mapNotNull null
                     Message(id = m.info.id, role = role, content = m.parts.firstOrNull { it.type == "text" }?.text ?: "")
                 } ?: emptyList()
+                msgCounts[s.id] = messages.size
                 Session(id = s.id, name = name, messages = messages)
             }.reversed()
             _state.update { it.copy(sessions = sessions, activeSessionId = sessions.firstOrNull()?.id ?: "") }
@@ -132,13 +125,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             api.fetchAccount(_state.value.apiKey).fold(
                 onSuccess = { acct -> _state.update { it.copy(account = acct) } },
-                onFailure = { /* account API is optional */ },
+                onFailure = {},
             )
         }
     }
 
     fun setActiveModel(m: String) { prefs.activeModel = m; _state.update { it.copy(activeModel = m) } }
-    fun toggleAccountLogin() { _state.update { it.copy(showAccountLogin = !it.showAccountLogin) } }
 
     fun sendMessage(text: String) {
         val sid = _state.value.activeSessionId
@@ -161,7 +153,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                 val t = msgs.firstOrNull { it.info.id == aid }?.parts?.firstOrNull { it.type == "text" }?.text
                                 if (t != null && t.isNotBlank()) {
                                     _state.update { state -> state.copy(sessions = state.sessions.map { sess -> if (sess.id == state.activeSessionId) sess.copy(messages = sess.messages.map { m -> if (m.id == aid) m.copy(content = t) else m }) else sess }) }
-                                    // Notify when response arrives
                                     try { AppNotifications.showMessage(getApplication(), "OpenCode", "Response received") } catch (_: Exception) {}
                                     return@launch
                                 }
