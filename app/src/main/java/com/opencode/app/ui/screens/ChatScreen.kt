@@ -102,7 +102,9 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
 
         // Input area
         if (session != null && state.isConnected) {
-            Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+            ) {
                 if (state.error != null) {
                     Surface(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), shape = RoundedCornerShape(12.dp), color = scheme.errorContainer) {
                         Row(Modifier.padding(10.dp)) {

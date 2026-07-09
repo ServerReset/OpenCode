@@ -94,7 +94,7 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
                 }
             }
         } else {
-            LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, bottom = 80.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 80.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(state.sessions, key = { it.id }) { session ->
                     val snippet = session.messages.firstOrNull { it.role == com.opencode.app.data.Role.USER }?.content?.take(100) ?: ""
                     Surface(
