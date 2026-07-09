@@ -72,7 +72,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun processSessions(list: List<ServerSession>) {
         viewModelScope.launch {
-            val withMessages = list.map { s -> s to api.getMessages(s.id).getOrNull() }
+            // Filter out sub-agent sessions by title patterns
+            val mainSessions = list.filter { s ->
+                val title = s.title ?: s.id.take(8)
+                !title.contains("subagent", ignoreCase = true) &&
+                !title.contains("(@", ignoreCase = false) &&
+                !title.contains("general subagent", ignoreCase = true) &&
+                !title.contains("explore subagent", ignoreCase = true) &&
+                !title.contains("plan subagent", ignoreCase = true) &&
+                !title.contains("build subagent", ignoreCase = true)
+            }
+            val withMessages = mainSessions.map { s -> s to api.getMessages(s.id).getOrNull() }
             val sessions = withMessages.map { (s, msgs) ->
                 val name = s.title ?: s.id.take(8)
                 val messages = msgs?.mapNotNull { m ->
