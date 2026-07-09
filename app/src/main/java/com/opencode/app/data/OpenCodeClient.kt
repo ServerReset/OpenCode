@@ -84,14 +84,15 @@ class OpenCodeClient {
 
     suspend fun getMessages(sessionId: String): Result<List<ServerMsg>> = withContext(Dispatchers.IO) {
         try {
-            // Try reference paths first: /session/:id/message (known to work with opencode servers)
             val r = client.newCall(req("/session/$sessionId/message")).execute()
-            if (r.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(r.body?.string() ?: "{\"data\":[]}").data)
-            else {
-                // Fallback: try /api/session/:id/message
+            val rawBody = r.body?.string() ?: ""
+            if (r.isSuccessful) {
+                Result.success(json.decodeFromString<MsgListResp>(rawBody).data)
+            } else {
                 val r2 = client.newCall(req("/api/session/$sessionId/message")).execute()
-                if (r2.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(r2.body?.string() ?: "{\"data\":[]}").data)
-                else Result.failure(Exception("HTTP ${r.code} / ${r2.code}"))
+                val rawBody2 = r2.body?.string() ?: ""
+                if (r2.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(rawBody2).data)
+                else Result.failure(Exception("Messages API failed. HTTP ${r.code} (${rawBody.take(200)}) / ${r2.code} (${rawBody2.take(200)})"))
             }
         } catch (e: Exception) { Result.failure(e) }
     }
