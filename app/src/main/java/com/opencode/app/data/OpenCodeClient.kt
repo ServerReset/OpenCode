@@ -131,12 +131,26 @@ class OpenCodeClient {
 
     /** Fetch account info from the opencode cloud API */
     suspend fun fetchAccount(apiKey: String): Result<AccountInfo> = withContext(Dispatchers.IO) {
-        try {
-            val r = client.newCall(Request.Builder().url("https://api.opencode.ai/v1/account")
-                .addHeader("Authorization", "Bearer $apiKey").addHeader("Accept", "application/json").get().build()).execute()
-            if (r.isSuccessful) Result.success(json.decodeFromString(r.body?.string() ?: "{}"))
-            else Result.failure(Exception("Account: HTTP ${r.code}"))
-        } catch (e: Exception) { Result.failure(e) }
+        if (apiKey.isBlank()) return@withContext Result.failure(Exception("No API key"))
+        // Try multiple opencode.ai endpoints
+        val endpoints = listOf(
+            "https://api.opencode.ai/v1/account",
+            "https://api.opencode.ai/v1/user",
+            "https://api.opencode.ai/v1/zen",
+            "https://api.opencode.ai/account",
+            "https://api.opencode.ai/user",
+        )
+        for (url in endpoints) {
+            try {
+                val r = client.newCall(Request.Builder().url(url).addHeader("Authorization", "Bearer $apiKey").addHeader("Accept", "application/json").get().build()).execute()
+                if (r.isSuccessful) {
+                    val body = r.body?.string() ?: "{}"
+                    val info = try { json.decodeFromString<AccountInfo>(body) } catch (_: Exception) { AccountInfo() }
+                    return@withContext Result.success(info)
+                }
+            } catch (_: Exception) { continue }
+        }
+        Result.failure(Exception("Could not fetch account from any opencode.ai endpoint"))
     }
 
     companion object { val instance = OpenCodeClient() }

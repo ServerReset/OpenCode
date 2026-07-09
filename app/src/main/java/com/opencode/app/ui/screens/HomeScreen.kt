@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.opencode.app.viewmodel.AppState
 import com.opencode.app.viewmodel.AppViewModel
@@ -24,9 +25,9 @@ import com.opencode.app.viewmodel.AppViewModel
 fun HomeScreen(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
 
-    Column(Modifier.fillMaxSize().statusBarsPadding().padding(top = 16.dp)) {
-        // Header
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        // Header with connection + account
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("OpenCode", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -48,15 +49,26 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
             }
         }
 
-        // Account info
-        AnimatedVisibility(visible = state.account != null, enter = expandVertically() + fadeIn()) {
+        // Account card (if logged in)
+        AnimatedVisibility(visible = state.account != null, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             state.account?.let { acct ->
                 Spacer(Modifier.height(8.dp))
-                Surface(Modifier.fillMaxWidth().padding(horizontal = 20.dp), shape = RoundedCornerShape(12.dp), color = scheme.primaryContainer) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AccountCircle, null, tint = scheme.primary, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("${acct.plan} · ${acct.monthlyUsed}/${acct.monthlyLimit} monthly", style = MaterialTheme.typography.labelSmall, color = scheme.onPrimaryContainer)
+                Surface(Modifier.fillMaxWidth().padding(horizontal = 20.dp), shape = RoundedCornerShape(16.dp), color = scheme.primaryContainer) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccountCircle, null, tint = scheme.primary, modifier = Modifier.size(28.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(acct.plan.ifBlank { "OpenCode" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = scheme.onPrimaryContainer)
+                            val usage = if (acct.monthlyLimit > 0) "${acct.monthlyUsed} / ${acct.monthlyLimit} monthly" else "API key saved"
+                            Text(usage, style = MaterialTheme.typography.labelSmall, color = scheme.onPrimaryContainer)
+                            if (acct.monthlyLimit > 0) {
+                                Spacer(Modifier.height(6.dp))
+                                Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(scheme.outlineVariant)) {
+                                    val pct = (acct.monthlyUsed.toFloat() / acct.monthlyLimit).coerceIn(0f, 1f)
+                                    Box(Modifier.fillMaxWidth(pct).fillMaxHeight().background(scheme.primary))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -72,6 +84,15 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
                     Text(state.error ?: "", style = MaterialTheme.typography.bodySmall, color = scheme.onErrorContainer, modifier = Modifier.weight(1f))
                 }
             }
+        }
+
+        // Sessions header
+        if (state.sessions.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("${state.sessions.size} conversations", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = scheme.primary)
+            }
+            Spacer(Modifier.height(8.dp))
         }
 
         // Sessions or empty state
@@ -92,11 +113,10 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
                 }
             }
         } else if (state.sessions.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 items(state.sessions, key = { it.id }) { session ->
                     val snippet = session.messages.firstOrNull { it.role == com.opencode.app.data.Role.USER }?.content?.take(120)
@@ -106,25 +126,22 @@ fun HomeScreen(vm: AppViewModel, state: AppState) {
                             indication = null,
                             onClick = { vm.switchToSession(session.id) },
                         ),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = scheme.surfaceContainerHigh,
                     ) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Surface(shape = RoundedCornerShape(10.dp), color = scheme.primaryContainer, modifier = Modifier.size(40.dp)) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Chat, null, tint = scheme.primary, modifier = Modifier.size(20.dp))
-                                }
+                            Surface(shape = RoundedCornerShape(10.dp), color = scheme.primaryContainer, modifier = Modifier.size(36.dp)) {
+                                Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Chat, null, tint = scheme.primary, modifier = Modifier.size(18.dp)) }
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(session.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(session.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 if (snippet != null) {
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(snippet, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                    Text(snippet, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 Text("${session.messages.size} msgs", style = MaterialTheme.typography.labelSmall, color = scheme.outline)
                             }
-                            Icon(Icons.Default.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.ChevronRight, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
