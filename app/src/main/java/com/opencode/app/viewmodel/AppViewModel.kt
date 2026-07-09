@@ -114,7 +114,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == id) it.copy(messages = messages) else it }) }
                 },
-                onFailure = { _state.update { it.copy(error = "Failed to load messages") } },
+                onFailure = { e -> _state.update { it.copy(error = "Messages: ${e.message}") } },
             )
         }
     }
