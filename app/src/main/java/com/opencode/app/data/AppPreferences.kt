@@ -7,18 +7,18 @@ class AppPreferences(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("opencode", Context.MODE_PRIVATE)
 
     var serverUrl: String
-        get() = prefs.getString("server_url", "http://10.0.2.2:4096") ?: "http://10.0.2.2:4096"
-        set(v) = prefs.edit().putString("server_url", v).apply()
+        get() = prefs.getString("url", "http://10.0.2.2:4096") ?: "http://10.0.2.2:4096"
+        set(v) = prefs.edit().putString("url", v).apply()
 
     var password: String
-        get() = prefs.getString("password", "") ?: ""
-        set(v) = prefs.edit().putString("password", v).apply()
+        get() = prefs.getString("pass", "") ?: ""
+        set(v) = prefs.edit().putString("pass", v).apply()
 
     var isDarkMode: Boolean
-        get() = prefs.getBoolean("dark_mode", false)
-        set(v) = prefs.edit().putBoolean("dark_mode", v).apply()
+        get() = prefs.getBoolean("dark", false)
+        set(v) = prefs.edit().putBoolean("dark", v).apply()
 
     var activeModel: String
-        get() = prefs.getString("active_model", "claude-sonnet") ?: "claude-sonnet"
-        set(v) = prefs.edit().putString("active_model", v).apply()
+        get() = prefs.getString("model", "claude-sonnet") ?: "claude-sonnet"
+        set(v) = prefs.edit().putString("model", v).apply()
 }

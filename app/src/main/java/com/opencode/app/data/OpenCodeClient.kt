@@ -12,172 +12,91 @@ import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 @Serializable
-data class HealthResponse(val healthy: Boolean, val version: String? = null)
-
+data class ServerSession(val id: String, val title: String? = null)
 @Serializable
-data class SessionData(
-    val id: String,
-    val title: String? = null,
-    val directory: String? = null,
-    val time: SessionTime? = null,
-    val agent: String? = null,
-)
-
+data class SessionListResp(val data: List<ServerSession>)
 @Serializable
-data class SessionTime(val created: Long = 0, val updated: Long = 0)
-
+data class SessionResp(val data: ServerSession)
 @Serializable
-data class CreateSessionPayload(val title: String? = null)
-
+data class ServerMsg(val info: ServerMsgInfo, val parts: List<ServerMsgPart> = emptyList())
 @Serializable
-data class SessionListResponse(val data: List<SessionData>)
-
+data class ServerMsgInfo(val id: String, val role: String)
 @Serializable
-data class SessionResponse(val data: SessionData)
-
+data class ServerMsgPart(val type: String, val text: String? = null)
 @Serializable
-data class MessageData(
-    val info: MessageInfo,
-    val parts: List<MessagePart> = emptyList(),
-)
-
+data class MsgListResp(val data: List<ServerMsg>)
 @Serializable
-data class MessageInfo(val id: String, val role: String, val sessionID: String? = null)
-
-@Serializable
-data class MessagePart(
-    val type: String,
-    val text: String? = null,
-    val tool: String? = null,
-    val state: ToolState? = null,
-    val url: String? = null,
-    val id: String? = null,
-)
-
-@Serializable
-data class ToolState(val status: String = "", val input: String? = null, val output: String? = null)
-
-@Serializable
-data class PromptPayload(
-    val parts: List<PromptPart>,
-    val agent: String? = null,
-    val model: ModelRef? = null,
-)
-
+data class PromptReq(val parts: List<PromptPart>)
 @Serializable
 data class PromptPart(val type: String = "text", val text: String? = null)
-
 @Serializable
-data class ModelRef(val providerID: String, val modelID: String)
+data class ServerModel(val id: String, val name: String? = null, val provider: String? = null)
+@Serializable
+data class ModelListResp(val data: List<ServerModel>)
 
-data class ModelInfo(val id: String, val name: String, val provider: String, val color: Long = 0xFF65558F)
-
-val availableModels = listOf(
-    ModelInfo("claude-sonnet", "Claude Sonnet 4", "Anthropic", 0xFFD97706),
-    ModelInfo("gpt-4o", "GPT-4o", "OpenAI", 0xFF10A37F),
-    ModelInfo("gemini-2.5-pro", "Gemini 2.5 Pro", "Google", 0xFF4285F4),
-    ModelInfo("deepseek-v4", "DeepSeek V4", "DeepSeek", 0xFF6B5CE7),
-    ModelInfo("llama-4", "Llama 4 Maverick", "Meta", 0xFF0668E1),
-)
-
-class OpenCodeClient(private var baseUrl: String = "", private var password: String = "") {
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
+class OpenCodeClient {
+    private var baseUrl = ""
+    private var password = ""
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS)
-        .followRedirects(true).followSslRedirects(true).build()
+        .connectTimeout(10, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).build()
     private val JSON = "application/json".toMediaType()
 
-    var connected: Boolean = false; private set
+    var connected = false; private set
     var lastError: String? = null; private set
 
     fun configure(url: String, pass: String = "") {
-        baseUrl = url.trimEnd('/')
-        password = pass
-        connected = false; lastError = null
+        baseUrl = url.trimEnd('/'); password = pass; connected = false; lastError = null
     }
 
-    private val authHeader: String? by lazy {
-        if (password.isNotBlank()) "Basic ${Base64.getEncoder().encodeToString("opencode:$password".toByteArray())}" else null
-    }
-
-    private fun Request.Builder.auth() = apply { authHeader?.let { header("Authorization", it) } }
+    private fun auth() = if (password.isNotBlank()) "Basic ${Base64.getEncoder().encodeToString("opencode:$password".toByteArray())}" else null
 
     private fun req(path: String, method: String = "GET", body: String? = null): Request {
-        val b = body?.toRequestBody(JSON)
-        return Request.Builder().url("$baseUrl$path").auth().method(method, b).addHeader("Accept", "application/json").build()
-    }
-
-    private fun parseError(res: okhttp3.Response): String = when {
-        res.code == 401 -> "Unauthorized. Check password."
-        res.code == 403 -> "Access denied."
-        res.code == 404 -> "Endpoint not found. Check URL."
-        res.code >= 500 -> "Server error (${res.code})"
-        else -> "HTTP ${res.code}"
+        val r = Request.Builder().url("$baseUrl$path").addHeader("Accept", "application/json")
+        auth()?.let { r.addHeader("Authorization", it) }
+        body?.let { r.method(method, it.toRequestBody(JSON)) } ?: r.method(method, null)
+        return r.build()
     }
 
     suspend fun health(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val r = client.newCall(req("/api/health")).execute()
             if (r.isSuccessful) { connected = true; lastError = null; Result.success(Unit) }
-            else { connected = false; val m = parseError(r); lastError = m; Result.failure(Exception(m)) }
+            else { connected = false; val m = "HTTP ${r.code}"; lastError = m; Result.failure(Exception(m)) }
         } catch (e: Exception) { connected = false; lastError = e.message; Result.failure(e) }
     }
 
-    suspend fun fetchModels(): Result<List<ServerModel>> = withContext(Dispatchers.IO) {
-        try {
-            val r = client.newCall(req("/api/model")).execute()
-            if (r.isSuccessful) {
-                val body = r.body?.string() ?: "{\"data\":[]}"
-                // Response can be {data: [...]} or just [...]
-                val models = try {
-                    json.decodeFromString<ServerModelListResponse>(body).data
-                } catch (_: Exception) {
-                    try { json.decodeFromString<List<ServerModel>>(body) } catch (_: Exception) { emptyList() }
-                }
-                Result.success(models)
-            } else Result.failure(Exception(parseError(r)))
-        } catch (e: Exception) { Result.failure(e) }
-    }
-
-    suspend fun listSessions(): Result<List<SessionData>> = withContext(Dispatchers.IO) {
+    suspend fun listSessions(): Result<List<ServerSession>> = withContext(Dispatchers.IO) {
         try {
             val r = client.newCall(req("/api/session")).execute()
-            if (r.isSuccessful) {
-                val body = r.body?.string() ?: "{\"data\":[]}"
-                Result.success(json.decodeFromString<SessionListResponse>(body).data)
-            } else Result.failure(Exception(parseError(r)))
+            if (r.isSuccessful) Result.success(json.decodeFromString<SessionListResp>(r.body?.string() ?: "{\"data\":[]}").data)
+            else Result.failure(Exception("HTTP ${r.code}"))
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun createSession(title: String? = null): Result<SessionData> = withContext(Dispatchers.IO) {
+    suspend fun createSession(): Result<ServerSession> = withContext(Dispatchers.IO) {
         try {
-            val payload = if (title != null) json.encodeToString(CreateSessionPayload.serializer(), CreateSessionPayload(title)) else "{}"
-            val r = client.newCall(req("/api/session", "POST", payload)).execute()
-            if (r.isSuccessful) Result.success(json.decodeFromString<SessionResponse>(r.body?.string() ?: "{}").data)
-            else Result.failure(Exception(parseError(r)))
+            val r = client.newCall(req("/api/session", "POST", "{}")).execute()
+            if (r.isSuccessful) Result.success(json.decodeFromString<SessionResp>(r.body?.string() ?: "{}").data)
+            else Result.failure(Exception("HTTP ${r.code}"))
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun getMessages(sessionId: String): Result<List<MessageData>> = withContext(Dispatchers.IO) {
+    suspend fun getMessages(sessionId: String): Result<List<ServerMsg>> = withContext(Dispatchers.IO) {
         try {
             val r = client.newCall(req("/api/session/$sessionId/message")).execute()
-            if (r.isSuccessful) {
-                val body = r.body?.string() ?: "{\"data\":[]}"
-                val resp = json.decodeFromString<SessionMessagesResponse>(body)
-                Result.success(resp.data)
-            } else Result.failure(Exception(parseError(r)))
+            if (r.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(r.body?.string() ?: "{\"data\":[]}").data)
+            else Result.failure(Exception("HTTP ${r.code}"))
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun sendPrompt(sessionId: String, modelId: String, text: String): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun sendPrompt(sessionId: String, text: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val payload = PromptPayload(parts = listOf(PromptPart(text = text)), model = ModelRef(providerID = modelId, modelID = modelId))
-            val body = json.encodeToString(PromptPayload.serializer(), payload)
+            val body = json.encodeToString(PromptReq.serializer(), PromptReq(parts = listOf(PromptPart(text = text))))
             val r = client.newCall(req("/api/session/$sessionId/prompt", "POST", body)).execute()
             if (r.isSuccessful) Result.success(Unit)
             else {
-                val errBody = r.body?.string()
-                val msg = if (errBody?.contains("conflict") == true) "Session is busy" else parseError(r)
+                val msg = if ((r.body?.string() ?: "").contains("conflict")) "Session busy" else "HTTP ${r.code}"
                 Result.failure(Exception(msg))
             }
         } catch (e: Exception) { Result.failure(e) }
@@ -187,12 +106,3 @@ class OpenCodeClient(private var baseUrl: String = "", private var password: Str
         val instance = OpenCodeClient()
     }
 }
-
-@Serializable
-data class SessionMessagesResponse(val data: List<MessageData> = emptyList())
-
-@Serializable
-data class ServerModel(val id: String, val name: String? = null, val provider: String? = null)
-
-@Serializable
-data class ServerModelListResponse(val data: List<ServerModel> = emptyList())

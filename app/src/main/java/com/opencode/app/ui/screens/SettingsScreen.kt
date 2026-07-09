@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
-
 package com.opencode.app.ui.screens
 
 import androidx.compose.foundation.background
@@ -25,58 +23,41 @@ import com.opencode.app.viewmodel.AppViewModel
 @Composable
 fun SettingsScreen(vm: AppViewModel, state: AppState) {
     val scheme = MaterialTheme.colorScheme
-    var serverUrlInput by remember(state.serverUrl) { mutableStateOf(state.serverUrl) }
-    var passwordInput by remember(state.password) { mutableStateOf(state.password) }
-    var showPassword by remember { mutableStateOf(false) }
+    var urlInput by remember(state.serverUrl) { mutableStateOf(state.serverUrl) }
+    var passInput by remember(state.password) { mutableStateOf(state.password) }
+    var showPass by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp)) {
         Spacer(Modifier.height(24.dp))
-
         Text("Server", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = scheme.primary, modifier = Modifier.padding(bottom = 8.dp))
-        Surface(shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(16.dp), color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                OutlinedTextField(value = serverUrlInput, onValueChange = { serverUrlInput = it },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Server URL") }, placeholder = { Text("http://192.168.1.100:4096") },
-                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    textStyle = MaterialTheme.typography.bodyMedium, shape = RoundedCornerShape(12.dp), enabled = !state.isConnecting)
+                OutlinedTextField(value = urlInput, onValueChange = { urlInput = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Server URL") }, singleLine = true, shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), enabled = !state.isConnecting)
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = passwordInput, onValueChange = { passwordInput = it },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Password (optional)") }, singleLine = true,
-                    shape = RoundedCornerShape(12.dp), enabled = !state.isConnecting, textStyle = MaterialTheme.typography.bodyMedium,
-                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = { IconButton(onClick = { showPassword = !showPassword }) { Icon(if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, null) } })
+                OutlinedTextField(value = passInput, onValueChange = { passInput = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Password") }, singleLine = true, shape = RoundedCornerShape(12.dp), enabled = !state.isConnecting,
+                    visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = { IconButton(onClick = { showPass = !showPass }) { Icon(if (showPass) Icons.Default.VisibilityOff else Icons.Default.Visibility, null) } })
                 Spacer(Modifier.height(12.dp))
-                FilledTonalButton(onClick = { vm.setServerUrl(serverUrlInput, passwordInput) }, enabled = !state.isConnecting && serverUrlInput.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+                FilledTonalButton(onClick = { vm.setServerUrl(urlInput, passInput) }, enabled = !state.isConnecting && urlInput.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
                     if (state.isConnecting) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Connect")
                 }
-                if (state.connectionError != null) { Spacer(Modifier.height(8.dp)); Text(state.connectionError!!, style = MaterialTheme.typography.labelSmall, color = scheme.error) }
             }
         }
-
         Spacer(Modifier.height(20.dp))
         Text("Appearance", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = scheme.primary, modifier = Modifier.padding(bottom = 8.dp))
-        Surface(shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(16.dp), color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(12.dp), color = scheme.surfaceVariant, modifier = Modifier.size(40.dp)) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.DarkMode, null, tint = scheme.primary, modifier = Modifier.size(20.dp)) }
-                }
+                Icon(Icons.Default.DarkMode, null, tint = scheme.primary, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) { Text("Dark Mode", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium); Text("Toggle light/dark theme", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant) }
+                Column(Modifier.weight(1f)) { Text("Dark Mode"); Text("Toggle theme", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant) }
                 Switch(checked = state.isDarkMode, onCheckedChange = { vm.toggleDarkMode() })
             }
         }
-
-        Spacer(Modifier.height(20.dp))
-        Text("About", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = scheme.primary, modifier = Modifier.padding(bottom = 8.dp))
-        Surface(shape = MaterialTheme.shapes.large, color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(12.dp), color = scheme.surfaceVariant, modifier = Modifier.size(40.dp)) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Info, null, tint = scheme.primary, modifier = Modifier.size(20.dp)) }
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) { Text("OpenCode Phone", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium); Text("M3 Expressive · Connect to your server", style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant) }
-            }
-        }
+        Spacer(Modifier.height(40.dp))
+        Text(if (state.isConnected) "✓ Connected" else "Not connected", style = MaterialTheme.typography.labelSmall, color = if (state.isConnected) scheme.primary else scheme.error)
         Spacer(Modifier.height(80.dp))
     }
 }

@@ -12,17 +12,14 @@ import com.opencode.app.ui.theme.OpenCodeTheme
 import com.opencode.app.viewmodel.AppViewModel
 
 class MainActivity : ComponentActivity() {
-
-    private val viewModel: AppViewModel by viewModels()
+    private val vm: AppViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val state by viewModel.state.collectAsState()
-            OpenCodeTheme(darkTheme = state.isDarkMode) {
-                OpenCodeApp(viewModel, state)
-            }
+            val state by vm.state.collectAsState()
+            OpenCodeTheme(darkTheme = state.isDarkMode) { OpenCodeApp(vm, state) }
         }
     }
 }
