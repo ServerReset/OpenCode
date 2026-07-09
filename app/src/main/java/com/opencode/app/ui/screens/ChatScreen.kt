@@ -127,26 +127,38 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
 
         // Model picker dialog
         if (state.showModelPicker) {
+            val grouped = availableModels.groupBy { it.provider }
             AlertDialog(
                 onDismissRequest = { vm.toggleModelPicker() }, shape = MaterialTheme.shapes.extraLarge, containerColor = scheme.surfaceContainerHigh,
                 title = { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.Bolt, null, tint = scheme.primary); Spacer(Modifier.width(8.dp)); Text("Select Model", fontWeight = FontWeight.Bold) } },
                 text = {
                     Column(Modifier.verticalScroll(rememberScrollState())) {
-                        availableModels.forEach { model ->
-                            val isActive = model.id == state.activeModel
-                            Surface(onClick = { vm.setActiveModel(model.id) }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
-                                color = if (isActive) scheme.primaryContainer else scheme.surfaceContainerHighest,
-                                border = if (isActive) androidx.compose.foundation.BorderStroke(1.dp, scheme.primary) else null) {
-                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Surface(shape = RoundedCornerShape(10.dp), color = Color(model.color).copy(alpha = 0.15f), modifier = Modifier.size(36.dp)) {
-                                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Bolt, null, tint = Color(model.color), modifier = Modifier.size(18.dp)) }
-                                    }
-                                    Spacer(Modifier.width(10.dp))
-                                    Column(Modifier.weight(1f)) { Text(model.name, style = MaterialTheme.typography.titleSmall); Text(model.provider, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant) }
-                                    if (isActive) Icon(Icons.Filled.CheckCircle, null, tint = scheme.primary, modifier = Modifier.size(20.dp))
-                                }
+                        Text("Thinking", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = scheme.primary, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+                        Surface(shape = MaterialTheme.shapes.medium, color = scheme.surfaceContainerHighest, modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("The model uses chain-of-thought reasoning before responding. This happens server-side and is streamed back to you.", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
                             }
-                            Spacer(Modifier.height(4.dp))
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        grouped.forEach { (provider, models) ->
+                            Text(provider, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.primary, modifier = Modifier.padding(bottom = 4.dp))
+                            models.forEach { model ->
+                                val isActive = model.id == state.activeModel
+                                Surface(onClick = { vm.setActiveModel(model.id) }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
+                                    color = if (isActive) scheme.primaryContainer else scheme.surfaceContainerHighest,
+                                    border = if (isActive) androidx.compose.foundation.BorderStroke(1.dp, scheme.primary) else null) {
+                                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(shape = RoundedCornerShape(10.dp), color = Color(model.color).copy(alpha = 0.15f), modifier = Modifier.size(36.dp)) {
+                                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Bolt, null, tint = Color(model.color), modifier = Modifier.size(18.dp)) }
+                                        }
+                                        Spacer(Modifier.width(10.dp))
+                                        Column(Modifier.weight(1f)) { Text(model.name, style = MaterialTheme.typography.titleSmall)
+                                            Text(model.provider, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant) }
+                                        if (isActive) Icon(Icons.Filled.CheckCircle, null, tint = scheme.primary, modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                                Spacer(Modifier.height(4.dp))
+                            }
                         }
                     }
                 },

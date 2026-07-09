@@ -74,21 +74,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         api.listSessions().fold(
             onSuccess = { list ->
                 val existing = _state.value.sessions
-                // Fetch messages for each session to check if real conversations
-                val sessions = list.mapNotNull { s ->
-                    val msgResult = api.getMessages(s.id)
-                    val hasUserMessages = msgResult.getOrNull()?.any { it.info.role == "user" } == true
-                    // Only keep sessions with user messages (real conversations)
-                    if (hasUserMessages) {
-                        existing.find { it.id == s.id }
-                            ?: Session(id = s.id, name = s.title ?: s.id.take(8), model = _state.value.activeModel)
-                    } else null
-                }.reversed() // newest first
+                // Don't filter by messages - show all sessions
+                // The server may not support per-session message fetching
+                val sessions = list.map { s ->
+                    existing.find { it.id == s.id } ?: Session(id = s.id, name = s.title ?: s.id.take(8), model = _state.value.activeModel)
+                }.reversed()
                 val activeId = sessions.firstOrNull()?.id ?: ""
                 _state.update { it.copy(sessions = sessions, activeSessionId = activeId) }
+                // Try to fetch messages for the active session in background
+                if (activeId.isNotBlank()) fetchSessionMessages(activeId)
             },
-            onFailure = { /* ignore */ },
+            onFailure = { _state.update { it.copy(error = "Failed to load sessions") } },
         )
+    }
+
+    private fun fetchSessionMessages(sessionId: String) {
+        viewModelScope.launch {
+            api.getMessages(sessionId).fold(
+                onSuccess = { msgs ->
+                    val messages = msgs.mapNotNull { m ->
+                        val role = when (m.info.role) { "user" -> Role.USER; "assistant" -> Role.ASSISTANT; else -> return@mapNotNull null }
+                        val text = m.parts.firstOrNull { it.type == "text" }?.text ?: ""
+                        Message(id = m.info.id, role = role, content = text)
+                    }
+                    _state.update { state -> state.copy(sessions = state.sessions.map { if (it.id == sessionId) it.copy(messages = messages) else it }) }
+                },
+                onFailure = { /* server may not support message listing */ },
+            )
+        }
     }
 
     fun createSession() {

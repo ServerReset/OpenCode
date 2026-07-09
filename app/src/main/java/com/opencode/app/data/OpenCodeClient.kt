@@ -123,6 +123,22 @@ class OpenCodeClient(private var baseUrl: String = "", private var password: Str
         } catch (e: Exception) { connected = false; lastError = e.message; Result.failure(e) }
     }
 
+    suspend fun fetchModels(): Result<List<ServerModel>> = withContext(Dispatchers.IO) {
+        try {
+            val r = client.newCall(req("/api/model")).execute()
+            if (r.isSuccessful) {
+                val body = r.body?.string() ?: "{\"data\":[]}"
+                // Response can be {data: [...]} or just [...]
+                val models = try {
+                    json.decodeFromString<ServerModelListResponse>(body).data
+                } catch (_: Exception) {
+                    try { json.decodeFromString<List<ServerModel>>(body) } catch (_: Exception) { emptyList() }
+                }
+                Result.success(models)
+            } else Result.failure(Exception(parseError(r)))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
     suspend fun listSessions(): Result<List<SessionData>> = withContext(Dispatchers.IO) {
         try {
             val r = client.newCall(req("/api/session")).execute()
@@ -174,3 +190,9 @@ class OpenCodeClient(private var baseUrl: String = "", private var password: Str
 
 @Serializable
 data class SessionMessagesResponse(val data: List<MessageData> = emptyList())
+
+@Serializable
+data class ServerModel(val id: String, val name: String? = null, val provider: String? = null)
+
+@Serializable
+data class ServerModelListResponse(val data: List<ServerModel> = emptyList())
