@@ -76,17 +76,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun processSessions(list: List<ServerSession>) {
         viewModelScope.launch {
             val withMessages = list.map { s -> s to api.getMessages(s.id).getOrNull() }
-            val filtered = withMessages.filter { (_, msgs) ->
-                msgs?.any { it.info.role == "user" } == true
-            }.map { (s, msgs) ->
+            val sessions = withMessages.map { (s, msgs) ->
                 val name = s.title ?: s.id.take(8)
                 val messages = msgs?.mapNotNull { m ->
-                    val role = when (m.info.role) { "user" -> Role.USER; "assistant" -> Role.ASSISTANT; else -> null } ?: return@mapNotNull null
+                    val role = when (m.info.role.lowercase()) { "user" -> Role.USER; "assistant" -> Role.ASSISTANT; else -> null } ?: return@mapNotNull null
                     Message(id = m.info.id, role = role, content = m.parts.firstOrNull { it.type == "text" }?.text ?: "")
                 } ?: emptyList()
                 Session(id = s.id, name = name, messages = messages)
             }.reversed()
-            _state.update { it.copy(sessions = filtered, activeSessionId = filtered.firstOrNull()?.id ?: "") }
+            _state.update { it.copy(sessions = sessions, activeSessionId = sessions.firstOrNull()?.id ?: "") }
         }
     }
 
