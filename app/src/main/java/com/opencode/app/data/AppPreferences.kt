@@ -21,4 +21,8 @@ class AppPreferences(context: Context) {
     var activeModel: String
         get() = prefs.getString("model", "claude-sonnet") ?: "claude-sonnet"
         set(v) = prefs.edit().putString("model", v).apply()
+
+    var apiKey: String
+        get() = prefs.getString("apikey", "") ?: ""
+        set(v) = prefs.edit().putString("apikey", v).apply()
 }

@@ -128,7 +128,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun fetchAccount() {
         viewModelScope.launch {
             api.fetchAccount(_state.value.apiKey).fold(
-                onSuccess = { _state.update { it.copy(account = it) } },
+                onSuccess = { acct -> _state.update { it.copy(account = acct) } },
                 onFailure = { /* account API is optional */ },
             )
         }

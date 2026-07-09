@@ -1,6 +1,7 @@
 package com.opencode.app.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -67,8 +68,8 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
             // Messages
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize().weight(1f),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp, bottom = 110.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 110.dp),
             ) {
                 items(messages, key = { it.id }) { msg ->
                     Column(
