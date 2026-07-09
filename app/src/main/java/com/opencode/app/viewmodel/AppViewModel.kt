@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+data class Todo(val id: String, val text: String, val done: Boolean = false)
+
 data class AppState(
     val screen: Screen = Screen.HOME,
     val isDarkMode: Boolean = false,
@@ -38,8 +40,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     ))
     val state: StateFlow<AppState> = _state.asStateFlow()
     private val api get() = OpenCodeClient.instance
+    private var msgCounts = mutableMapOf<String, Int>()
 
     init {
+        AppNotifications.setup(application)
         val u = _state.value.serverUrl
         if (u.isNotBlank()) { api.configure(u, _state.value.password); connect() }
         if (_state.value.apiKey.isNotBlank()) fetchAccount()
@@ -75,10 +79,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun processSessions(list: List<ServerSession>) {
         viewModelScope.launch {
-            // Only filter out sessions with non-default agents (plan, etc.)
-            // Default sessions use "build" agent or no agent
-            val mainSessions = list.filter { it.agent == null || it.agent == "build" }
-            val withMessages = mainSessions.map { s -> s to api.getMessages(s.id).getOrNull() }
+            val withMessages = list.map { s -> s to api.getMessages(s.id).getOrNull() }
+            val sessions = withMessages.map { (s, msgs) ->
             val sessions = withMessages.map { (s, msgs) ->
                 val name = s.title ?: s.id.take(8)
                 val messages = msgs?.mapNotNull { m ->
@@ -159,6 +161,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                 val t = msgs.firstOrNull { it.info.id == aid }?.parts?.firstOrNull { it.type == "text" }?.text
                                 if (t != null && t.isNotBlank()) {
                                     _state.update { state -> state.copy(sessions = state.sessions.map { sess -> if (sess.id == state.activeSessionId) sess.copy(messages = sess.messages.map { m -> if (m.id == aid) m.copy(content = t) else m }) else sess }) }
+                                    // Notify when response arrives
+                                    try { AppNotifications.showMessage(getApplication(), "OpenCode", "Response received") } catch (_: Exception) {}
                                     return@launch
                                 }
                             },
