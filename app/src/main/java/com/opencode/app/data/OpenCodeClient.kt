@@ -64,9 +64,14 @@ class OpenCodeClient {
     }
 
     suspend fun listSessions(): Result<List<ServerSession>> = withContext(Dispatchers.IO) {
-        try { val r = client.newCall(req("/api/session")).execute()
+        try { val r = client.newCall(req("/api/session?limit=200")).execute()
             if (r.isSuccessful) Result.success(json.decodeFromString<SessionListResp>(r.body?.string() ?: "{\"data\":[]}").data)
-            else { val m = "Sessions: HTTP ${r.code}"; lastError = m; Result.failure(Exception(m)) }
+            else {
+                // Try /experimental/session as fallback (reference app approach)
+                val r2 = client.newCall(req("/experimental/session?limit=200")).execute()
+                if (r2.isSuccessful) Result.success(json.decodeFromString<SessionListResp>(r2.body?.string() ?: "{\"data\":[]}").data)
+                else Result.failure(Exception("HTTP ${r.code}/${r2.code}"))
+            }
         } catch (e: Exception) { Result.failure(e) }
     }
 
@@ -80,19 +85,29 @@ class OpenCodeClient {
     suspend fun getMessages(sessionId: String): Result<List<ServerMsg>> = withContext(Dispatchers.IO) {
         try { val r = client.newCall(req("/api/session/$sessionId/message")).execute()
             if (r.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(r.body?.string() ?: "{\"data\":[]}").data)
-            else Result.failure(Exception("Messages: HTTP ${r.code}"))
+            else {
+                // Try without /api/ prefix as fallback
+                val r2 = client.newCall(req("/session/$sessionId/message")).execute()
+                if (r2.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(r2.body?.string() ?: "{\"data\":[]}").data)
+                else Result.failure(Exception("HTTP ${r.code} / ${r2.code}"))
+            }
         } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun sendPrompt(sessionId: String, text: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val body = json.encodeToString(PromptReq.serializer(), PromptReq(parts = listOf(PromptPart(text = text))))
+            // Try /api/session/:id/prompt first, then /session/:id/message as fallback
             val r = client.newCall(req("/api/session/$sessionId/prompt", "POST", body)).execute()
             if (r.isSuccessful) Result.success(Unit)
             else {
-                val errBody = r.body?.string() ?: ""
-                val msg = if (errBody.contains("conflict")) "Session busy" else if (errBody.contains("401")) "Auth required" else "HTTP ${r.code}"
-                Result.failure(Exception(msg))
+                // Try /session/:id/message as fallback (reference app approach)
+                val r2 = client.newCall(req("/session/$sessionId/message", "POST", body)).execute()
+                if (r2.isSuccessful) Result.success(Unit)
+                else {
+                    val msg = if ((r2.body?.string() ?: "").contains("conflict")) "Session busy" else "HTTP ${r.code}/${r2.code}"
+                    Result.failure(Exception(msg))
+                }
             }
         } catch (e: Exception) { Result.failure(e) }
     }
