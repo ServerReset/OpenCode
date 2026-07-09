@@ -75,8 +75,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun processSessions(list: List<ServerSession>) {
         viewModelScope.launch {
-            // Filter out sub-agent sessions (agent field is set)
-            val mainSessions = list.filter { it.agent == null }
+            // Only filter out sessions with non-default agents (plan, etc.)
+            // Default sessions use "build" agent or no agent
+            val mainSessions = list.filter { it.agent == null || it.agent == "build" }
             val withMessages = mainSessions.map { s -> s to api.getMessages(s.id).getOrNull() }
             val sessions = withMessages.map { (s, msgs) ->
                 val name = s.title ?: s.id.take(8)
