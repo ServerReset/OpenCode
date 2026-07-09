@@ -49,7 +49,7 @@ fun AppBottomBar(currentScreen: Screen, onScreenSelected: (Screen) -> Unit, vm: 
 
     val indicatorOffset by animateDpAsState(
         targetValue = if (activeIndex >= 0 && itemWidthPx > 0f) {
-            (activeIndex.toFloat() * itemWidthPx).toDp()
+            with(density) { (activeIndex.toFloat() * itemWidthPx).toDp() }
         } else 0.dp,
         animationSpec = spring(dampingRatio = 0.7f, stiffness = 400f),
         label = "navIndicator",
@@ -130,7 +130,7 @@ fun AppBottomBar(currentScreen: Screen, onScreenSelected: (Screen) -> Unit, vm: 
                 Box(modifier = Modifier.fillMaxWidth().offset(x = indicatorOffset)) {
                     Box(
                         modifier = Modifier
-                            .width(with(density) { (itemWidthPx - 8f).toDp().coerceAtLeast(0.dp) })
+                            .width(with(density) { (itemWidthPx - 8f).coerceAtLeast(0f).toDp() })
                             .height(44.dp)
                             .padding(4.dp)
                             .background(scheme.secondaryContainer, RoundedCornerShape(22.dp)),
