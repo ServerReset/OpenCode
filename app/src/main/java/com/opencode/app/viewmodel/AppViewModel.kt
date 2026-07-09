@@ -131,7 +131,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (key.isNotBlank()) fetchAccount()
     }
 
-    private fun fetchAccount() {
+    fun fetchAccount() {
         viewModelScope.launch {
             api.fetchAccount(_state.value.apiKey).fold(
                 onSuccess = { acct -> _state.update { it.copy(account = acct) } },
@@ -141,6 +141,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setActiveModel(m: String) { prefs.activeModel = m; _state.update { it.copy(activeModel = m) } }
+    fun toggleModelPicker() { _state.update { it.copy(showModelPicker = !it.showModelPicker) } }
 
     fun sendMessage(text: String) {
         val sid = _state.value.activeSessionId
