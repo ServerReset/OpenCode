@@ -129,4 +129,3 @@ fun ChatScreen(vm: AppViewModel, state: AppState) {
             }
         }
     }
-}
