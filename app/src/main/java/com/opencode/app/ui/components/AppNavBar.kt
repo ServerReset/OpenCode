@@ -1,5 +1,7 @@
 package com.opencode.app.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -10,6 +12,7 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,13 +43,14 @@ fun AppNavBar(current: Screen, onSelect: (Screen) -> Unit, modifier: Modifier = 
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
-                .shadow(6.dp, RoundedCornerShape(26.dp))
+                .shadow(8.dp, RoundedCornerShape(26.dp), clip = false)
                 .clip(RoundedCornerShape(26.dp))
                 .background(scheme.surfaceContainerHigh),
         ) {
             Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                 tabs.forEach { tab ->
                     val selected = current == tab.screen
+                    val tint by animateColorAsState(targetValue = if (selected) scheme.primary else scheme.onSurfaceVariant, label = "tint", animationSpec = spring())
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -61,8 +65,7 @@ fun AppNavBar(current: Screen, onSelect: (Screen) -> Unit, modifier: Modifier = 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             tab.icon()
                             Spacer(Modifier.height(2.dp))
-                            Text(tab.label, style = MaterialTheme.typography.labelSmall,
-                                color = if (selected) scheme.primary else scheme.onSurfaceVariant)
+                            Text(tab.label, style = MaterialTheme.typography.labelSmall, color = tint)
                         }
                     }
                 }

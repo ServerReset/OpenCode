@@ -30,16 +30,14 @@ data class PromptReq(val parts: List<PromptPart>)
 @Serializable
 data class PromptPart(val type: String = "text", val text: String? = null)
 @Serializable
-data class ServerModel(val id: String, val name: String? = null, val provider: String? = null)
-@Serializable
-data class ModelListResp(val data: List<ServerModel>)
+data class AccountInfo(val email: String = "", val plan: String = "Free", val monthlyLimit: Int = 0, val monthlyUsed: Int = 0, val weeklyLimit: Int = 0, val weeklyUsed: Int = 0)
 
 class OpenCodeClient {
     private var baseUrl = ""
     private var password = ""
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).build()
+        .connectTimeout(10, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).build()
     private val JSON = "application/json".toMediaType()
 
     var connected = false; private set
@@ -58,35 +56,31 @@ class OpenCodeClient {
         return r.build()
     }
 
-    suspend fun health(): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val r = client.newCall(req("/api/health")).execute()
-            if (r.isSuccessful) { connected = true; lastError = null; Result.success(Unit) }
-            else { connected = false; val m = "HTTP ${r.code}"; lastError = m; Result.failure(Exception(m)) }
-        } catch (e: Exception) { connected = false; lastError = e.message; Result.failure(e) }
+    suspend fun health(): Result<String> = withContext(Dispatchers.IO) {
+        try { val r = client.newCall(req("/api/health")).execute()
+            if (r.isSuccessful) Result.success("ok")
+            else { val m = "HTTP ${r.code}"; lastError = m; Result.failure(Exception(m)) }
+        } catch (e: Exception) { lastError = e.message; Result.failure(e) }
     }
 
     suspend fun listSessions(): Result<List<ServerSession>> = withContext(Dispatchers.IO) {
-        try {
-            val r = client.newCall(req("/api/session")).execute()
+        try { val r = client.newCall(req("/api/session")).execute()
             if (r.isSuccessful) Result.success(json.decodeFromString<SessionListResp>(r.body?.string() ?: "{\"data\":[]}").data)
-            else Result.failure(Exception("HTTP ${r.code}"))
+            else { val m = "Sessions: HTTP ${r.code}"; lastError = m; Result.failure(Exception(m)) }
         } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun createSession(): Result<ServerSession> = withContext(Dispatchers.IO) {
-        try {
-            val r = client.newCall(req("/api/session", "POST", "{}")).execute()
+        try { val r = client.newCall(req("/api/session", "POST", "{}")).execute()
             if (r.isSuccessful) Result.success(json.decodeFromString<SessionResp>(r.body?.string() ?: "{}").data)
-            else Result.failure(Exception("HTTP ${r.code}"))
+            else Result.failure(Exception("Create: HTTP ${r.code}"))
         } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun getMessages(sessionId: String): Result<List<ServerMsg>> = withContext(Dispatchers.IO) {
-        try {
-            val r = client.newCall(req("/api/session/$sessionId/message")).execute()
+        try { val r = client.newCall(req("/api/session/$sessionId/message")).execute()
             if (r.isSuccessful) Result.success(json.decodeFromString<MsgListResp>(r.body?.string() ?: "{\"data\":[]}").data)
-            else Result.failure(Exception("HTTP ${r.code}"))
+            else Result.failure(Exception("Messages: HTTP ${r.code}"))
         } catch (e: Exception) { Result.failure(e) }
     }
 
@@ -96,13 +90,22 @@ class OpenCodeClient {
             val r = client.newCall(req("/api/session/$sessionId/prompt", "POST", body)).execute()
             if (r.isSuccessful) Result.success(Unit)
             else {
-                val msg = if ((r.body?.string() ?: "").contains("conflict")) "Session busy" else "HTTP ${r.code}"
+                val errBody = r.body?.string() ?: ""
+                val msg = if (errBody.contains("conflict")) "Session busy" else if (errBody.contains("401")) "Auth required" else "HTTP ${r.code}"
                 Result.failure(Exception(msg))
             }
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    companion object {
-        val instance = OpenCodeClient()
+    /** Fetch account info from the opencode cloud API */
+    suspend fun fetchAccount(apiKey: String): Result<AccountInfo> = withContext(Dispatchers.IO) {
+        try {
+            val r = client.newCall(Request.Builder().url("https://api.opencode.ai/v1/account")
+                .addHeader("Authorization", "Bearer $apiKey").addHeader("Accept", "application/json").get().build()).execute()
+            if (r.isSuccessful) Result.success(json.decodeFromString(r.body?.string() ?: "{}"))
+            else Result.failure(Exception("Account: HTTP ${r.code}"))
+        } catch (e: Exception) { Result.failure(e) }
     }
+
+    companion object { val instance = OpenCodeClient() }
 }

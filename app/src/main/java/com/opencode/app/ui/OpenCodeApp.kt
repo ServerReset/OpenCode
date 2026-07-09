@@ -25,7 +25,7 @@ fun OpenCodeApp(vm: AppViewModel, state: AppState) {
 
             Column(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.weight(1f)) {
-                    when (state.currentScreen) {
+                    when (state.screen) {
                         Screen.HOME -> HomeScreen(vm, state)
                         Screen.CHAT -> ChatScreen(vm, state)
                         Screen.SETTINGS -> SettingsScreen(vm, state)
@@ -33,7 +33,7 @@ fun OpenCodeApp(vm: AppViewModel, state: AppState) {
                 }
 
                 AppNavBar(
-                    current = state.currentScreen,
+                    current = state.screen,
                     onSelect = { vm.setScreen(it) },
                 )
             }
