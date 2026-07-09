@@ -25,6 +25,7 @@ fun OpenCodeApp(vm: AppViewModel, state: AppState) {
             when (state.screen) {
                 Screen.HOME -> HomeScreen(vm, state)
                 Screen.CHAT -> ChatScreen(vm, state)
+                else -> HomeScreen(vm, state)
             }
         }
     }

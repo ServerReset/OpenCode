@@ -54,7 +54,7 @@ fun FloatingActionBar(
                     // Server
                     ActionRow(Icons.Default.Cloud, "Server", state.serverUrl) { onToggleServer(); expanded = false }
                     // Account
-                    ActionRow(Icons.Default.AccountCircle, "Account", state.account?.plan ?: "Not logged in") { vm.fetchAccount(state.apiKey); expanded = false }
+                    ActionRow(Icons.Default.AccountCircle, "Account", state.account?.plan ?: "Not logged in") { vm.fetchAccount(); expanded = false }
                     // Dark mode
                     ActionRow(if (state.isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode, "Theme", if (state.isDarkMode) "Dark" else "Light") { vm.toggleDarkMode() }
                 }

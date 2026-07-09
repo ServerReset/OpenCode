@@ -23,6 +23,7 @@ data class AppState(
     val sessions: List<Session> = emptyList(),
     val activeSessionId: String = "",
     val activeModel: String = "claude-sonnet",
+    val showModelPicker: Boolean = false,
     val account: AccountInfo? = null,
     val error: String? = null,
 ) {
