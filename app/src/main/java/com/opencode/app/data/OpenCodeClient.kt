@@ -12,7 +12,7 @@ import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 @Serializable
-data class ServerSession(val id: String, val title: String? = null)
+data class ServerSession(val id: String, val title: String? = null, val agent: String? = null)
 @Serializable
 data class SessionListResp(val data: List<ServerSession>)
 @Serializable
